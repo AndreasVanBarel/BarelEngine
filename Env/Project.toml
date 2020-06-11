@@ -1,0 +1,10 @@
+[deps]
+Atom = "c52e3926-4ff0-5f6e-af25-54175e0327b1"
+Blink = "ad839575-38b3-5650-b840-f874b8c74a25"
+Gtk = "4c0ca9eb-093a-5379-98c5-f87ac0bbbf44"
+Interact = "c601a237-2ae4-5e1e-952c-7a85b0c7eef1"
+JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
+Juno = "e5e0dc1b-0480-54bc-9374-aad01c23163d"
+Mux = "a975b10e-0019-58db-a62f-e48ff68538c9"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+WebIO = "0f1e0344-ec1d-5b48-a673-e5cf874b6c29"
