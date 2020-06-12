@@ -14,6 +14,7 @@ function buy(amount::Int)
     goods+=amount
     money-=cost
     gui_update(gui,market)
+    return cost
 end
 
 function sell(amount::Int)
@@ -22,19 +23,22 @@ function sell(amount::Int)
     goods-=amount
     money-=cost
     gui_update(gui,market)
+    return cost
 end
 
-gui = Gui.construct((::Int)->buy(1),(::Int)->sell(1))
+gui = Gui.construct(buy,sell)
 draw(gui)
 
 function gui_update(gui::GuiInstance, market::Market)
     p = price(market)
-    buycost = sum(tradecost(market,1))
-    sellgain = -sum(tradecost(market,-1))
-    update(gui,p,buycost,sellgain,money,goods)
+    buycost1 = sum(tradecost(market,1)[1:2])
+    sellgain1 = -sum(tradecost(market,-1)[1:2])
+    buycost10 = sum(tradecost(market,10)[1:2])
+    sellgain10 = -sum(tradecost(market,-10)[1:2])
+    update(gui,p,buycost1,sellgain1,buycost10,sellgain10,money,goods)
 end
 
-#gui_update(gui,market)
+gui_update(gui,market)
 
 #close(gui)
 #newwindow(gui)
