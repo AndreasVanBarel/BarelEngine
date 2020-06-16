@@ -3,10 +3,10 @@ using Markets
 using Gui
 
 # creation of the market
-market = Market("Test",100.0,0.1)
+market = Market("Test",100.0,100.0,0.1)
 
 money = 1000.0
-goods = 0.0
+goods = 1000.0
 
 function buy(amount::Int)
     global money, goods
