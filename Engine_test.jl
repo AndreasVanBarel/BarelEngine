@@ -13,7 +13,7 @@ sprite = Sprite(Vec2d(-0.4,-0.4), Vec2d(0.4,-0.4), Vec2d(0.4,0.4), Vec2d(-0.4,0.
 #sprite = Sprite(VEC_ORIGIN,tex)
 bgtex = load_texture("resources/background.jpg")
 bg = Sprite(Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0), bgtex)
-squares = [Square(rand(Vec2d),0.03,rand(Color)) for i = 1:10000]
+squares = [Square(rand(Vec2d),0.03,rand(Color),25) for i = 1:20000]
 function onUpdate(t_elapsed)
     clear(COLOR_WHITE)
     draw(bg)

@@ -375,6 +375,7 @@ function gpu_allocate()
 	vboP = UInt32[0] # Vertex Buffer Object
 	glGenBuffers(1,vboP)
 	glBindBuffer(GL_ARRAY_BUFFER, vboP[1])
+	glBufferData(GL_ARRAY_BUFFER, 72, C_NULL, GL_STREAM_DRAW) #allocate the buffer on the gpu
 
 	#Specifiy the interpretation of the data
     glEnableVertexAttribArray(0)
@@ -476,11 +477,12 @@ function draw(q::Quadrangle)
 			p1.x,p1.y,Float32(0),
 			p3.x,p3.y,Float32(0),
 			p4.x,p4.y,Float32(0)]
-	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW) #copy to the GPU
+	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STREAM_DRAW) #copy to the GPU
+	# glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(data), data)
 
-	#Specifiy the interpretation of the data
-	glEnableVertexAttribArray(0)
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(Float32), Ptr{Nothing}(0))
+	# #Specifiy the interpretation of the data
+	# glEnableVertexAttribArray(0)
+	# glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(Float32), Ptr{Nothing}(0))
 
 	glUseProgram(prog.triangle) #Reuses the triangle program.
 	glUniform4f(prog.triangle_colorLoc, f(q.color.r), f(q.color.g), f(q.color.b), f(q.α))
