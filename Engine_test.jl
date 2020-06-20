@@ -29,6 +29,7 @@ function onUpdate(t_elapsed)
     end
     draw.(squares)
     drawfree(Square(mouse(),0.03,COLOR_RED))
+    draw(Circle(VEC_ORIGIN,0.2,COLOR_CYAN))
 end
 loop(onUpdate)
 free(sprite)

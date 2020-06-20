@@ -17,7 +17,7 @@ export KeyEvent, NO_KEY_EVENT
 
 export load_texture
 export clear
-export Graphical, Triangle, Quadrangle, Square, Sprite
+export Graphical, Triangle, Quadrangle, Square, Ellipse, Circle, Sprite
 export draw, free, drawfree
 export center, loc, color!, α!, shape!, position!, translate!, rotate!, scale!
 
@@ -333,13 +333,13 @@ clear(c::Color,α::Real=255) = clear(c.r,c.g,c.b,α)
 clear(r::Integer,g::Integer,b::Integer,α::Integer=255) = clear(f(r),f(g),f(b),f(α))
 clear() = clear(0.0f0,0.0f0,0.0f0,1.0f0)
 
-drawfree(o) = (draw(o); free(o))
-
 ### Buffers on the GPU for the various objects
 triangle_vao = UInt32(0)
 triangle_vbo = UInt32(0)
 quadrangle_vao = UInt32(0)
 quadrangle_vbo = UInt32(0)
+ellipse_vao = UInt32(0)
+ellipse_vbo = UInt32(0)
 sprite_vao = UInt32(0)
 sprite_vbo = UInt32(0)
 function resetgpulocations()
@@ -347,6 +347,8 @@ function resetgpulocations()
 	global triangle_vbo = UInt32(0)
 	global quadrangle_vao = UInt32(0)
 	global quadrangle_vbo = UInt32(0)
+	global ellipse_vao = UInt32(0)
+	global ellipse_vbo = UInt32(0)
 	global sprite_vao = UInt32(0)
 	global sprite_vbo = UInt32(0)
 end
@@ -375,7 +377,8 @@ function gpu_allocate()
 	vboP = UInt32[0] # Vertex Buffer Object
 	glGenBuffers(1,vboP)
 	glBindBuffer(GL_ARRAY_BUFFER, vboP[1])
-	glBufferData(GL_ARRAY_BUFFER, 72, C_NULL, GL_STREAM_DRAW) #allocate the buffer on the gpu
+	glBufferData(GL_ARRAY_BUFFER, 72, C_NULL, GL_STREAM_DRAW) # allocate the buffer on the gpu
+	# TODO: Do this everywhere and then use glBufferSubData to copy to the existing STREAM buffer. Might need multiple buffers though, with some deferred rendering...
 
 	#Specifiy the interpretation of the data
     glEnableVertexAttribArray(0)
@@ -383,6 +386,24 @@ function gpu_allocate()
 
 	global quadrangle_vao = vaoP[1]
 	global quadrangle_vbo = vboP[1]
+
+	### ellipse ###
+	vaoP = UInt32[0] # Vertex Array Object
+	glGenVertexArrays(1, vaoP)
+	glBindVertexArray(vaoP[1])
+
+	vboP = UInt32[0] # Vertex Buffer Object
+	glGenBuffers(1,vboP)
+	glBindBuffer(GL_ARRAY_BUFFER, vboP[1])
+
+	#Specifiy the interpretation of the data
+	glEnableVertexAttribArray(0)
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5*sizeof(Float32), Ptr{Nothing}(0))
+	glEnableVertexAttribArray(1)
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(Float32), Ptr{Nothing}(3*sizeof(Float32)))
+
+	global ellipse_vao = vaoP[1]
+	global ellipse_vbo = vboP[1]
 
 	### sprite ###
 	vaoP = UInt32[0] # Vertex Array Object
@@ -409,22 +430,22 @@ function gpu_free()
 end
 
 abstract type Graphical end
+free(g::Graphical) = nothing #fallback
+drawfree(g::Graphical) = (draw(g); free(g))
 color!(t::Graphical,c::Color) = t.color = c
 α!(t::Graphical,α::Real) = t.α = α
-free(g::Graphical) = nothing #fallback
 loc(g::Graphical) = g.vertices[1]
 position!(g::Graphical,pos::Vec2d,center::Vec2d=loc(t)) = g.vertices .+= pos.-center
-translate!(g::Graphical,v::Vec2d) = g.vertices .+= v
-rotate!(g::Graphical,angle::Real,center::Vec2d=center(t)) = @error("rotation NYI") #TODO
 scale!(g::Graphical,factor::Real,center::Vec2d) = g.vertices .= factor.*(g.vertices.-center).+center
+translate!(g::Graphical,v::Vec2d) = g.vertices .+= v
+rotate!(g::Graphical,θ::Real,center::Vec2d=center(t)) = g.vertices .= rot.(vertices, θ, center)
+rot(v::Vec2d,θ::Real,center::Vec2d) = Vec2d(cos(θ)*v.x-sin(θ)*v.y, sin(θ)*v.x+cos(θ)*v.y)
 
 mutable struct Triangle <: Graphical
 	vertices::Vector{Vec2d}
 	color::Color
 	α::UInt8
 end
-#getproperty(t::Triangle, s::Symbol) = s === :color || s === :α ? getfield(t,s)[] : getfield(t, s)
-#setproperty!(t::Triangle, s::Symbol, val) = s === :color || s === :α ? getfield(t,s)[]=val : error("Cannot assign to $s".)
 Triangle(p1::Vec2d,p2::Vec2d,p3::Vec2d,c::Color,α::Integer=255) = Triangle([p1,p2,p3],c,α)
 function draw(t::Triangle)
 	glBindVertexArray(triangle_vao)
@@ -438,7 +459,7 @@ function draw(t::Triangle)
 	glUniform4f(prog.triangle_colorLoc, f(t.color.r), f(t.color.g), f(t.color.b), f(t.α));
 	glDrawArrays(GL_TRIANGLES, 0, 3)
 end
-Base.show(t::Triangle,io::IO) = println("Triangle stored on GPU in VAO $(t.vao).")
+Base.show(t::Triangle,io::IO) = println("Triangle at $(loc(q)).")
 center(t::Triangle) = sum(vertices)/length(vertices)
 shape!(t::Triangle,p1::Vec2d,p2::Vec2d,p3::Vec2d) = t.vertices = [p1,p2,p3]
 
@@ -457,40 +478,19 @@ function Square(p::Vec2d,side,c,α=255)
 	Quadrangle(p1,p2,p3,p4,c,α)
 end
 function draw(q::Quadrangle)
-	# vaoP = UInt32[0] # Vertex Array Object
-	# glGenVertexArrays(1, vaoP)
-	# glBindVertexArray(vaoP[1])
-	#
-	# vboP = UInt32[0] # Vertex Buffer Object
-	# glGenBuffers(1,vboP)
-	# glBindBuffer(GL_ARRAY_BUFFER, vboP[1])
-	#
-	# quadrangle_vao = vaoP[1]
-	# quadrangle_vbo = vboP[1]
-
 	glBindVertexArray(quadrangle_vao)
 	glBindBuffer(GL_ARRAY_BUFFER, quadrangle_vbo)
 	p1,p2,p3,p4 = q.vertices
 	data = [p1.x,p1.y,Float32(0),
 			p2.x,p2.y,Float32(0),
 			p3.x,p3.y,Float32(0),
-			p1.x,p1.y,Float32(0),
-			p3.x,p3.y,Float32(0),
 			p4.x,p4.y,Float32(0)]
 	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STREAM_DRAW) #copy to the GPU
-	# glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(data), data)
-
-	# #Specifiy the interpretation of the data
-	# glEnableVertexAttribArray(0)
-	# glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(Float32), Ptr{Nothing}(0))
-
 	glUseProgram(prog.triangle) #Reuses the triangle program.
 	glUniform4f(prog.triangle_colorLoc, f(q.color.r), f(q.color.g), f(q.color.b), f(q.α))
-	glDrawArrays(GL_TRIANGLES, 0, 6)
-	# glDeleteVertexArrays(1, [quadrangle_vao])
-	# glDeleteBuffers(1, [quadrangle_vbo])
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
 end
-Base.show(q::Quadrangle,io::IO) = println("Quadrangle stored on GPU in VAO $(q.vao).")
+Base.show(q::Quadrangle,io::IO) = println("Quadrangle at $(loc(q)).")
 center(q::Quadrangle) = sum(vertices)/length(vertices)
 shape!(q::Quadrangle,p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d) = q.vertices = [p1,p2,p3,p4]
 shape!(q::Quadrangle,p::Vec2d,v1::Vec2d,v2::Vec2d) = q.vertices = [p,p+v1,p+v1+v2,p+v2]
@@ -502,6 +502,36 @@ function shape!(q::Quadrangle,p::Vec2d)
 	v2 = Vec2d(p.x,p.y+2h/wh) #Normalized device coordinates width
 	shape!(q,p,v1,v2)
 end
+
+mutable struct Ellipse <: Graphical
+    vertices::Vector{Vec2d} #Contain [centre, axis1, axis2]
+	color::Color
+	α::UInt8
+end
+Ellipse(p::Vec2d,a1::Vec2d,a2::Vec2d,c::Color,α::Integer=255) = Ellipse([p,a1,a2],c,α)
+Circle(p::Vec2d,r::Real,c,α=255) = Ellipse(p,p+r*VEC_EX,p+r*VEC_EY,c,α)
+function draw(g::Ellipse)
+	glBindVertexArray(ellipse_vao)
+	glBindBuffer(GL_ARRAY_BUFFER, ellipse_vbo)
+	p,a1,a2 = g.vertices
+	p1 = p-a1-a2
+	p2 = p+a1-a2
+	p3 = p+a1+a2
+	p4 = p-a1+a2
+	data = [p1.x,p1.y,0f0, 1f0,-1f0,
+			p2.x,p2.y,0f0, 1f0,1f0,
+			p3.x,p3.y,0f0, -1f0,1f0,
+			p4.x,p4.y,0f0, -1f0,-1f0]
+	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STREAM_DRAW) #copy to the GPU
+	glUseProgram(prog.ellipse) #Reuses the triangle program.
+	glUniform4f(prog.ellipse_colorLoc, f(g.color.r), f(g.color.g), f(g.color.b), f(g.α))
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
+end
+Base.show(g::Ellipse,io::IO) = println("Quadrangle at $(loc(q)).")
+center(g::Ellipse) = vertices[1]
+shape!(g::Ellipse,p::Vec2d,a1::Vec2d,a2::Vec2d) = q.vertices = [g,a1,a2]
+shape!(g::Ellipse,p::Vec2d,r::Real) = q.vertices = shape!(g,p,p+r*VEC_EX,p+r*VEC_EY)
+shape!(g::Ellipse,r::Real) = q.vertices = shape!(g,vertices[1],r)
 
 mutable struct Sprite <: Graphical
 	texture::UInt32 #Location of the texture on the GPU
@@ -552,8 +582,6 @@ function draw(s::Sprite)
 	data = [p1.x,p1.y,0f0, 1f0,0f0,
 			p2.x,p2.y,0f0, 1f0,1f0,
 			p3.x,p3.y,0f0, 0f0,1f0,
-			p1.x,p1.y,0f0, 1f0,0f0,
-			p3.x,p3.y,0f0, 0f0,1f0,
 			p4.x,p4.y,0f0, 0f0,0f0]
 	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW) #copy to the GPU
 	glUseProgram(prog.sprite)
@@ -561,8 +589,8 @@ function draw(s::Sprite)
 	glActiveTexture(GL_TEXTURE0)
 	glBindTexture(GL_TEXTURE_2D, s.texture)
 	glUniform1i(prog.sprite_textureLoc, 0)
-	glDrawArrays(GL_TRIANGLES, 0, 6)
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
 end
-Base.show(s::Sprite,io::IO) = println("Sprite stored on GPU in VAO $(s.vao) with texture in $(s.texture)")
+Base.show(s::Sprite,io::IO) = println("Sprite with texture stored on GPU at $(s.texture)")
 
 end
