@@ -5,7 +5,7 @@ export createWindow, destroyWindow, width, height, n_to_p, p_to_n
 export vsync, wireframe
 export loop
 
-export Vec2d, VEC_ORIGIN, VEC_EX, VEC_EY
+export Vec2d, VEC_ORIGIN, VEC_EX, VEC_EY, norm, dot, dist
 export Color, r, g, b, α
 export COLOR_BLACK, COLOR_WHITE, COLOR_GRAY, COLOR_DGRAY, COLOR_DDGRAY
 export COLOR_RED, COLOR_DRED, COLOR_DDRED, COLOR_GREEN, COLOR_DGREEN, COLOR_DDGREEN, COLOR_BLUE, COLOR_DBLUE, COLOR_DDBLUE
@@ -22,6 +22,7 @@ export draw, free, drawfree
 export center, loc, color!, α!, shape!, position!, translate!, rotate!, scale!
 
 import Base: +,-,*,/,rand
+import LinearAlgebra: norm, dot
 
 # External dependencies
 import GLFW
@@ -230,6 +231,9 @@ end
 *(c,a::Vec2d) = Vec2d(c*a.x,c*a.y)
 *(a::Vec2d,c) = *(c,a)
 /(a::Vec2d,c) = Vec2d(a.x/c,a.y/c)
+norm(v::Vec2d) = sqrt(v.x*v.x+v.y*v.y)
+dot(a::Vec2d,b::Vec2d) = a.x*b.x + a.y*b.y
+dist(a::Vec2d,b::Vec2d) = norm(a-b)
 const VEC_ORIGIN = Vec2d(0f0,0f0)
 const VEC_EX = Vec2d(1f0,0f0)
 const VEC_EY = Vec2d(0f0,1f0)
@@ -282,8 +286,8 @@ function popMouseEvents()
 	pos = mouse()
 	for i=1:8
 		if mouseEvents[i].pressed==false
-			if GLFW.GetMouseButton(window, GLFW.MouseButton(i-1))
-				poppedMouseEvents[i] = MouseEvent(i-1,true,255,time_ns(),pos.x,pos.y)
+			if GLFW.GetMouseButton(window, GLFW.MouseButton(i-1)) #mouse still pressed
+				poppedMouseEvents[i] = MouseEvent(i-1,true,128,time_ns(),pos.x,pos.y)
 			else
 				poppedMouseEvents[i] = mouseEvents[i]
 			end
@@ -435,10 +439,10 @@ drawfree(g::Graphical) = (draw(g); free(g))
 color!(t::Graphical,c::Color) = t.color = c
 α!(t::Graphical,α::Real) = t.α = α
 loc(g::Graphical) = g.vertices[1]
-position!(g::Graphical,pos::Vec2d,center::Vec2d=loc(t)) = g.vertices .+= pos.-center
+position!(g::Graphical,pos::Vec2d,center::Vec2d=loc(g)) = g.vertices .+= [pos-center]
 scale!(g::Graphical,factor::Real,center::Vec2d) = g.vertices .= factor.*(g.vertices.-center).+center
-translate!(g::Graphical,v::Vec2d) = g.vertices .+= v
-rotate!(g::Graphical,θ::Real,center::Vec2d=center(t)) = g.vertices .= rot.(vertices, θ, center)
+translate!(g::Graphical,v::Vec2d) = g.vertices .+= [v]
+rotate!(g::Graphical,θ::Real,center::Vec2d=center(t)) = g.vertices .= rot.(vertices, θ, [center])
 rot(v::Vec2d,θ::Real,center::Vec2d) = Vec2d(cos(θ)*v.x-sin(θ)*v.y, sin(θ)*v.x+cos(θ)*v.y)
 
 mutable struct Triangle <: Graphical
@@ -461,7 +465,7 @@ function draw(t::Triangle)
 end
 Base.show(t::Triangle,io::IO) = println("Triangle at $(loc(q)).")
 center(t::Triangle) = sum(vertices)/length(vertices)
-shape!(t::Triangle,p1::Vec2d,p2::Vec2d,p3::Vec2d) = t.vertices = [p1,p2,p3]
+shape!(t::Triangle,p1::Vec2d,p2::Vec2d,p3::Vec2d) = t.vertices .= [p1,p2,p3]
 
 mutable struct Quadrangle <: Graphical
     vertices::Vector{Vec2d}
@@ -491,17 +495,9 @@ function draw(q::Quadrangle)
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
 end
 Base.show(q::Quadrangle,io::IO) = println("Quadrangle at $(loc(q)).")
-center(q::Quadrangle) = sum(vertices)/length(vertices)
-shape!(q::Quadrangle,p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d) = q.vertices = [p1,p2,p3,p4]
-shape!(q::Quadrangle,p::Vec2d,v1::Vec2d,v2::Vec2d) = q.vertices = [p,p+v1,p+v1+v2,p+v2]
-function shape!(q::Quadrangle,p::Vec2d)
-	t = GLFW.GetWindowSize(window)
-	ww,wh = t[1],t[2]
-	w,h = size(tex)[2:3]
-	v1 = Vec2d(p.x+2w/ww,p.y)
-	v2 = Vec2d(p.x,p.y+2h/wh) #Normalized device coordinates width
-	shape!(q,p,v1,v2)
-end
+center(q::Quadrangle) = crosspoint(vertices...)
+shape!(q::Quadrangle,p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d) = q.vertices .= [p1,p2,p3,p4]
+shape!(q::Quadrangle,p::Vec2d,v1::Vec2d,v2::Vec2d) = shape!(q,p,p+v1,p+v1+v2,p+v2)
 
 mutable struct Ellipse <: Graphical
     vertices::Vector{Vec2d} #Contain [centre, axis1, axis2]
@@ -509,7 +505,7 @@ mutable struct Ellipse <: Graphical
 	α::UInt8
 end
 Ellipse(p::Vec2d,a1::Vec2d,a2::Vec2d,c::Color,α::Integer=255) = Ellipse([p,a1,a2],c,α)
-Circle(p::Vec2d,r::Real,c,α=255) = Ellipse(p,p+r*VEC_EX,p+r*VEC_EY,c,α)
+Circle(p::Vec2d,r::Real,c,α=255) = Ellipse(p,r*VEC_EX,r*VEC_EY,c,α)
 function draw(g::Ellipse)
 	glBindVertexArray(ellipse_vao)
 	glBindBuffer(GL_ARRAY_BUFFER, ellipse_vbo)
@@ -529,7 +525,8 @@ function draw(g::Ellipse)
 end
 Base.show(g::Ellipse,io::IO) = println("Quadrangle at $(loc(q)).")
 center(g::Ellipse) = vertices[1]
-shape!(g::Ellipse,p::Vec2d,a1::Vec2d,a2::Vec2d) = q.vertices = [g,a1,a2]
+position!(g::Ellipse,p::Vec2d) = g.vertices[1] = p
+shape!(g::Ellipse,p::Vec2d,a1::Vec2d,a2::Vec2d) = g.vertices = [p,a1,a2]
 shape!(g::Ellipse,p::Vec2d,r::Real) = q.vertices = shape!(g,p,p+r*VEC_EX,p+r*VEC_EY)
 shape!(g::Ellipse,r::Real) = q.vertices = shape!(g,vertices[1],r)
 
@@ -545,7 +542,7 @@ end
 function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,tex::Array{UInt8,3},c::Color=COLOR_WHITE,α::Integer=255)
 	α = UInt8(α)
 	width, height = size(tex)[2:3]
-	vertices = [p1,p2,p3,p4]
+	vertices = [crosspoint(p1,p2,p3,p4),p1,p2,p3,p4]
 	size(tex)[1]!=3 && size(tex)[1]!=4 && (@error("texture format not supported"); return nothing)
 	isrgba = size(tex)[1]==4
 
@@ -567,29 +564,39 @@ function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,tex::Array{UInt8,3},c::C
 
 	Sprite(textureP[1],width,height,isrgba,vertices,c,α)
 end
-Sprite(p::Vec2d,v1::Vec2d,v2::Vec2d,tex,c=COLOR_WHITE,α=255) = Sprite(p,p+v1,p+v1+v2,p+v2,tex,c,α)
-function Sprite(p::Vec2d,tex,c=COLOR_WHITE,α=255) #p is lower left corner of the sprite
-	s = Sprite(VEC_ORIGIN,VEC_ORIGIN,VEC_ORIGIN,VEC_ORIGIN,tex,c,α)
-	shape!(s)
-	s
+# Calculates the intersection between p1--p3 and p2--p4
+function crosspoint(p1::Vec2d,p3::Vec2d,p2::Vec2d,p4::Vec2d)
+	A = [p2.y-p1.y	p1.x-p2.x;
+		 p4.y-p3.y	p3.x-p4.x]
+	b = [p2.y*p1.x-p2.x*p1.y, p4.y*p3.x-p4.x*p3.y]
+	p = A\b
+	Vec2d(p...)
 end
+Sprite(p::Vec2d,v1::Vec2d,v2::Vec2d,tex,c=COLOR_WHITE,α=255) = Sprite(p,p+v1,p+v1+v2,p+v2,tex,c,α)
+Sprite(p::Vec2d,tex,c=COLOR_WHITE,α=255) = Sprite(p,VEC_EX,VEC_EY,tex,c,α)
 Sprite(tex,c=COLOR_WHITE,α=255) = Sprite(VEC_ORIGIN,tex,c,α)
 free(s::Sprite) = glDeleteTextures(1,[s.texture])
+loc(s::Sprite) = s.vertices[2]
+center(s::Sprite) = s.vertices[1]
+shape!(s::Sprite,p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d) = s.vertices .= [crosspoint(p1,p2,p3,p4),p1,p2,p3,p4]
+shape!(s::Sprite,p::Vec2d,v1::Vec2d,v2::Vec2d) = shape!(s,p,p+v1,p+v1+v2,p+v2)
 function draw(s::Sprite)
 	glBindVertexArray(sprite_vao)
 	glBindBuffer(GL_ARRAY_BUFFER, sprite_vbo)
-	p1,p2,p3,p4 = s.vertices
-	data = [p1.x,p1.y,0f0, 1f0,0f0,
+	c,p1,p2,p3,p4 = s.vertices
+	data = [c.x,c.y,0f0,0.5f0,0.5f0,
+			p1.x,p1.y,0f0, 1f0,0f0,
 			p2.x,p2.y,0f0, 1f0,1f0,
 			p3.x,p3.y,0f0, 0f0,1f0,
-			p4.x,p4.y,0f0, 0f0,0f0]
+			p4.x,p4.y,0f0, 0f0,0f0,
+			p1.x,p1.y,0f0, 1f0,0f0]
 	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW) #copy to the GPU
 	glUseProgram(prog.sprite)
 	glUniform4f(prog.sprite_colorLoc, f(s.color.r), f(s.color.g), f(s.color.b), f(s.α))
 	glActiveTexture(GL_TEXTURE0)
 	glBindTexture(GL_TEXTURE_2D, s.texture)
-	glUniform1i(prog.sprite_textureLoc, 0)
-	glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
+	glUniform1i(prog.sprite_textureLoc, 0) #NOTE: This 0 corresponds to the GL_TEXTURE0 that is active.
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 6)
 end
 Base.show(s::Sprite,io::IO) = println("Sprite with texture stored on GPU at $(s.texture)")
 
