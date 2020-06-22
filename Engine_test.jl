@@ -14,6 +14,8 @@ circles = Circle.(points,0.02,[COLOR_GREEN])
 bgtex = load_texture("resources/background.jpg")
 bg = Sprite(Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0), bgtex)
 selected = 1
+translate!(camera,Vec2d(0.2,0.4))
+scale!(camera,0.5)
 function onUpdate(t_elapsed)
     global selected
     clear(COLOR_WHITE)

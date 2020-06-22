@@ -10,6 +10,8 @@ export Color, r, g, b, α
 export COLOR_BLACK, COLOR_WHITE, COLOR_GRAY, COLOR_DGRAY, COLOR_DDGRAY
 export COLOR_RED, COLOR_DRED, COLOR_DDRED, COLOR_GREEN, COLOR_DGREEN, COLOR_DDGREEN, COLOR_BLUE, COLOR_DBLUE, COLOR_DDBLUE
 export COLOR_YELLOW, COLOR_DYELLOW, COLOR_DDYELLOW, COLOR_CYAN, COLOR_DCYAN, COLOR_DDCYAN, COLOR_MAGENTA, COLOR_DMAGENTA, COLOR_DDMAGENTA
+export Transform, inverse
+export Camera, use, camera
 
 export InputEvent, resetinputbuffers
 export MouseEvent, NO_MOUSE_EVENT, mouse, mouseEvents, popMouseEvents, poppedMouseEvents
@@ -27,6 +29,7 @@ import LinearAlgebra: norm, dot
 # External dependencies
 import GLFW
 using ModernGL
+using LinearAlgebra
 
 # Submodules
 import GLPrograms
@@ -41,6 +44,7 @@ function bits(u::Integer)
    	res.chunks[1] = u%UInt64
    	res
 end
+rotmatrix(θ::Real) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
 
 #################################
 # Window creation and main loop #
@@ -52,6 +56,7 @@ window = nothing
 function reset()
 	global prog = nothing
 	global window = nothing
+	global camera = Camera()
 	resetinputbuffers()
 	resetgpulocations()
 	nothing
@@ -99,12 +104,16 @@ function createWindow(width::Int=640, height::Int=480, title::String="Barel Engi
 	# Compile shader programs
 	global prog = GLPrograms.generatePrograms()
 
+	# Set Camera values on the gpu
+	gpu_upload(camera)
+
 	# Enable alpha blending
 	glEnable(GL_BLEND)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
 	# Allocate buffers on the GPU
 	gpu_allocate()
+
 	return
 end
 function destroyWindow()
@@ -243,6 +252,39 @@ n_to_p(n::Vec2d) = Vec2d((n.x+1)*width(), (1-n.y)*height()) #normalized device c
 
 rand(::Type{Vec2d},args...) = Vec2d.(rand(args...).*2 .-1, rand(args...).*2 .-1)
 
+struct Transform
+	M::Matrix{Float32}
+	function Transform(M::Matrix{Float32})
+		size(M) == (3,3) || error("Invalid dimensions")
+		M[end,:] == [0,0,1] || error("Last row must be [0 0 1]")
+		new(M)
+	end
+end
+Transform(M::Matrix) = Transform(Matrix{Float32}(M))
+Transform(A::Matrix,b::Vector) = Transform([A b; 0 0 1])
+Transform(A::Matrix,b::Vec2d) = Transform(A, [b.x, b.y])
+*(t1::Transform,t2::Transform) = Transform(t1.M*t2.M)
+(t::Transform)(v::Vec2d) = (p = t.M*[v.x, v.y, 1.0f0]; Vec2d(p[1],p[2]))
+inv(t::Transform) = Transform(inv(t.M))
+
+mutable struct Camera
+	t::Transform
+end
+Camera() = Camera(Transform(Matrix{Float32}(I,3,3)))
+translate!(cam::Camera,p::Vec2d) = (cam.t = Transform([1 0; 0 1],p)*cam.t; update(cam))
+rotate!(cam::Camera,θ::Real) = (cam.t = Transform(rotmatrix(θ), [0,0])*cam.t; update(cam))
+scale!(cam::Camera,c::Vec2d) = (cam.t = Transform([c.x 0; 0 c.y], [0,0])*cam.t; update(cam))
+scale!(cam::Camera,c::Real) = scale!(cam,Vec2d(c,c))
+update(cam::Camera) = (global camera; camera === cam && gpu_upload(cam))
+
+camera = Camera() # stores the currently bound camera
+use(cam::Camera) = (global camera = cam; gpu_copy(cam)) #to set the currently bound camera to the provided cam
+function gpu_upload(cam::Camera)
+	glUseProgram(prog.triangle); glUniformMatrix3fv(prog.triangle_camLoc, 1, false, cam.t.M);
+	glUseProgram(prog.ellipse); glUniformMatrix3fv(prog.ellipse_camLoc, 1, false, cam.t.M);
+	glUseProgram(prog.sprite); glUniformMatrix3fv(prog.sprite_camLoc, 1, false, cam.t.M);
+end
+
 ##############
 # User input #
 ##############
@@ -277,7 +319,7 @@ function mouse_button_callback(window::GLFW.Window, button, action, mods)
 	pos = mouse()
 	mouseEvents[button+1] = MouseEvent(button,pressed,mods,time_ns(),pos.x,pos.y)
 end
-mouse() = p_to_n(Vec2d(GLFW.GetCursorPos(window)...))
+mouse() = inv(camera.t)(p_to_n(Vec2d(GLFW.GetCursorPos(window)...)))
 mouse(b::Integer) = poppedMouseEvents[b+1]
 function rawmouse(b::Integer)
 	GLFW.GetMouseButton(window, GLFW.MouseButton(b))
@@ -593,6 +635,7 @@ function draw(s::Sprite)
 	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW) #copy to the GPU
 	glUseProgram(prog.sprite)
 	glUniform4f(prog.sprite_colorLoc, f(s.color.r), f(s.color.g), f(s.color.b), f(s.α))
+	#gpu_upload(camera)
 	glActiveTexture(GL_TEXTURE0)
 	glBindTexture(GL_TEXTURE_2D, s.texture)
 	glUniform1i(prog.sprite_textureLoc, 0) #NOTE: This 0 corresponds to the GL_TEXTURE0 that is active.
