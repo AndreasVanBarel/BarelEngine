@@ -1,5 +1,5 @@
 # run at start
-cd("C:\\Users\\Andreas\\SimpleMarket")
+cd("C:\\Users\\Andreas\\BarelEngine")
 push!(LOAD_PATH, pwd())
 Pkg.activate("./env")
 

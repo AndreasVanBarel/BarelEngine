@@ -24,7 +24,7 @@ export draw, free, drawfree
 export center, loc, color!, α!, shape!, position!, translate!, rotate!, scale!
 
 import Base: +,-,*,/,rand
-import LinearAlgebra: norm, dot
+import LinearAlgebra: norm, dot, inv
 
 # External dependencies
 import GLFW
@@ -268,21 +268,35 @@ Transform(A::Matrix,b::Vec2d) = Transform(A, [b.x, b.y])
 inv(t::Transform) = Transform(inv(t.M))
 
 mutable struct Camera
-	t::Transform
+	T::Transform
+    Tinv::Transform
 end
+Camera(T::Transform) = Camera(T,inv(T))
 Camera() = Camera(Transform(Matrix{Float32}(I,3,3)))
-translate!(cam::Camera,p::Vec2d) = (cam.t = Transform([1 0; 0 1],p)*cam.t; update(cam))
-rotate!(cam::Camera,θ::Real) = (cam.t = Transform(rotmatrix(θ), [0,0])*cam.t; update(cam))
-scale!(cam::Camera,c::Vec2d) = (cam.t = Transform([c.x 0; 0 c.y], [0,0])*cam.t; update(cam))
+function translate!(cam::Camera,p::Vec2d)
+	cam.T = Transform([1 0; 0 1],p)*cam.T
+	cam.Tinv = cam.Tinv*Transform([1 0; 0 1],-p)
+	update(cam)
+end
+function rotate!(cam::Camera,θ::Real)
+	cam.T = Transform(rotmatrix(θ), [0,0])*cam.T
+	cam.Tinv = cam.Tinv*Transform(rotmatrix(-θ), [0,0])
+	update(cam)
+end
+function scale!(cam::Camera,c::Vec2d)
+	cam.T = Transform([c.x 0; 0 c.y], [0,0])*cam.T
+	cam.Tinv = cam.Tinv*Transform([1/c.x 0; 0 1/c.y], [0,0])
+	update(cam)
+end
 scale!(cam::Camera,c::Real) = scale!(cam,Vec2d(c,c))
-update(cam::Camera) = (global camera; camera === cam && gpu_upload(cam))
+update(cam::Camera) = camera === cam && gpu_upload(cam)
 
 camera = Camera() # stores the currently bound camera
-use(cam::Camera) = (global camera = cam; gpu_copy(cam)) #to set the currently bound camera to the provided cam
+use(cam::Camera) = (global camera = cam; gpu_upload(cam)) #to set the currently bound camera to the provided cam
 function gpu_upload(cam::Camera)
-	glUseProgram(prog.triangle); glUniformMatrix3fv(prog.triangle_camLoc, 1, false, cam.t.M);
-	glUseProgram(prog.ellipse); glUniformMatrix3fv(prog.ellipse_camLoc, 1, false, cam.t.M);
-	glUseProgram(prog.sprite); glUniformMatrix3fv(prog.sprite_camLoc, 1, false, cam.t.M);
+	glUseProgram(prog.triangle); glUniformMatrix3fv(prog.triangle_camLoc, 1, false, cam.T.M);
+	glUseProgram(prog.ellipse); glUniformMatrix3fv(prog.ellipse_camLoc, 1, false, cam.T.M);
+	glUseProgram(prog.sprite); glUniformMatrix3fv(prog.sprite_camLoc, 1, false, cam.T.M);
 end
 
 ##############
@@ -319,7 +333,7 @@ function mouse_button_callback(window::GLFW.Window, button, action, mods)
 	pos = mouse()
 	mouseEvents[button+1] = MouseEvent(button,pressed,mods,time_ns(),pos.x,pos.y)
 end
-mouse() = inv(camera.t)(p_to_n(Vec2d(GLFW.GetCursorPos(window)...)))
+mouse() = camera.Tinv(p_to_n(Vec2d(GLFW.GetCursorPos(window)...)))
 mouse(b::Integer) = poppedMouseEvents[b+1]
 function rawmouse(b::Integer)
 	GLFW.GetMouseButton(window, GLFW.MouseButton(b))
