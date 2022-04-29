@@ -28,3 +28,6 @@ empire_US = Empire("United States of America", "USA")
 #empire_CN = Empire("China", "China")
 #empire_RU = Empire("Russian Federation", "Russia")
 #empire_AF = Empire("African Federation", "FA")
+
+EUws = WorldSection([ZoneSection()])
+push!(empire_EU.world)

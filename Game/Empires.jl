@@ -3,17 +3,20 @@ module Empires
 export ZoneSection, WorldSection, Empire
 
 using Worlds
+using Populations
 
 mutable struct ZoneSection
     zone::Zone
     pct::Float32
+    population::Population
+    buildings::Vector{Building}
 end
 
 mutable struct WorldSection
     zoneSections::Vector{ZoneSection}
 end
 
-mutable struct Empire
+struct Empire
     name::String
     shortname::String
     worldSections::Vector{WorldSection}
