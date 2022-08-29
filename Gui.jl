@@ -48,11 +48,11 @@ function update(gui::GuiInstance, price::Float64, buycost1::Float64, sellgain1::
             pad(1em, dom"p"("You have \$$(round(money; digits=2)) and $(round(goods; digits=2)) goods")),
             pad(1em, dom"p"("Price: $(round(price; digits=2))")),
             hbox(pad(1em, gui.button_buy1), pad(1em, gui.button_sell1)),
-            hbox(pad(1em, dom"p"("For: $(round(buycost1; digits=2))")),
-                 pad(1em, dom"p"("For: $(round(sellgain1; digits=2))"))),
+            hbox(pad(1em, dom"p"("For: $(round(buycost1; digits=5))")),
+                 pad(1em, dom"p"("For: $(round(sellgain1; digits=5))"))),
             hbox(pad(1em, gui.button_buy10), pad(1em, gui.button_sell10)),
-            hbox(pad(1em, dom"p"("For: $(round(buycost10; digits=2))")),
-                 pad(1em, dom"p"("For: $(round(sellgain10; digits=2))")))
+            hbox(pad(1em, dom"p"("For: $(round(buycost10; digits=5))")),
+                 pad(1em, dom"p"("For: $(round(sellgain10; digits=5))")))
          )
     draw(gui)
 end
