@@ -1,6 +1,13 @@
 module GLPrograms
 
 export generatePrograms
+
+export createVertexShader, createFragmentShader
+export createProg
+
+export createComputeShader
+export createComputeProg
+
 using ModernGL
 
 struct Programs
@@ -171,4 +178,20 @@ function generatePrograms()
 			sprite_prog, sprite_colorLoc, sprite_texLoc, sprite_camLoc)
 end
 
+## Compute Shaders 
+function createComputeShader(src::String)
+	shader = glCreateShader(GL_COMPUTE_SHADER) #UInt32
+	glShaderSource(shader, 1, [src], [length(src)])
+	glCompileShader(shader)
+	checkCompilation(shader)
+	return shader
+end
+function createComputeProg(cs_src::String)
+	cs = createComputeShader(cs_src) # compute shader
+	prog = glCreateProgram() #UInt32
+	glAttachShader(prog, cs)
+	glLinkProgram(prog)
+	checkLinking(prog)
+	return prog
+end
 end

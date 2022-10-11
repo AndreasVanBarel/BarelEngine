@@ -13,9 +13,11 @@ export COLOR_YELLOW, COLOR_DYELLOW, COLOR_DDYELLOW, COLOR_CYAN, COLOR_DCYAN, COL
 export Transform, inverse
 export Camera, use, camera
 
+# export Buffer, clear, isempty, isfull, items, pop!, push!, popall!
+
 export InputEvent, resetinputbuffers
 export MouseEvent, NO_MOUSE_EVENT, mouse, mouseEvents, popMouseEvents, poppedMouseEvents
-export KeyEvent, NO_KEY_EVENT
+export KeyEvent, keyEvents, popKeyEvents, poppedKeyEvents
 
 export load_texture
 export clear
@@ -24,6 +26,7 @@ export draw, free, drawfree
 export center, loc, color!, α!, shape!, position!, translate!, rotate!, scale!
 
 import Base: +,-,*,/,rand
+import Base.pop!, Base.push!
 import LinearAlgebra: norm, dot, inv
 
 # External dependencies
@@ -45,6 +48,35 @@ function bits(u::Integer)
    	res
 end
 rotmatrix(θ::Real) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
+
+# Buffer
+mutable struct Buffer{T}
+	size::Int
+	last::Int #last valable index (0 for empty buffer)
+	data::Vector{T}
+end
+Buffer{T}(size::Int) where T = Buffer{T}(size,0,Vector{T}(undef,size))
+clear(b::Buffer) = b.last = 0
+isempty(b::Buffer) = b.last == 0
+isfull(b::Buffer) = b.last == b.size
+function pop!(b::Buffer{T})::T where T
+	isempty(b) && return
+	b.last -= 1
+	return b.data[b.last+1]
+end
+function push!(b::Buffer{T}, item::T) where T
+	isfull(b) && return
+	b.last += 1
+	b.data[b.last] = item
+	return
+end
+# Copies items and returns them in a Vector{T}
+items(b::Buffer{T}) where T = return b.data[1:b.last]
+function popall!(b::Buffer{T})::Vector{T} where T 
+	len = b.last 
+	b.last = 0
+	return b.data[1:len]
+end 
 
 #################################
 # Window creation and main loop #
@@ -68,7 +100,7 @@ function init()
 	GLFW.Init() || @error("GLFW failed to initialize")
 
 	# Specify OpenGL version
-	GLFW.WindowHint(GLFW.CONTEXT_VERSION_MAJOR, 3);
+	GLFW.WindowHint(GLFW.CONTEXT_VERSION_MAJOR, 4);
 	GLFW.WindowHint(GLFW.CONTEXT_VERSION_MINOR, 3);
 	GLFW.WindowHint(GLFW.OPENGL_PROFILE, GLFW.OPENGL_CORE_PROFILE);
 end
@@ -132,6 +164,9 @@ function key_callback(window::GLFW.Window, key::GLFW.Key, scancode::Int32, actio
     if (key == GLFW.KEY_ESCAPE && action == GLFW.PRESS)
         GLFW.SetWindowShouldClose(window, true);
 	end
+	# push key event to key event buffer for later handling by the user 
+	keyEvent = KeyEvent(key, scancode, action, mods, time_ns())
+	push!(keyEvents, keyEvent)
 	return nothing
 end
 function framebuffer_size_callback(window::GLFW.Window, width, height)
@@ -142,6 +177,7 @@ end
 
 # Main loop
 function loop(onInit::Function, onUpdate::Function, onExit::Function)
+	GLFW.SetWindowShouldClose(window, false);
 	resetinputbuffers()
 	onInit()
 	# Main render loop
@@ -155,11 +191,9 @@ function loop(onInit::Function, onUpdate::Function, onExit::Function)
 		fps = 1e9/Δt
 		t_elapsed = t-t_start
 
-		t = time_ns()
 		s_fps = fps==Inf ? "Inf" : string(round(Int,fps))
 		GLFW.SetWindowTitle(window, "Barel Engine at "*s_fps*" fps");
 
-		popMouseEvents()
 		onUpdate(1e-9t_elapsed)
 
 		GLFW.SwapBuffers(window) # Swap front and back buffers
@@ -168,6 +202,9 @@ function loop(onInit::Function, onUpdate::Function, onExit::Function)
 		GLFW.PollEvents()
 		err = glGetError()
 		err == 0 || @error("GL Error code $err")
+
+		popMouseEvents()
+		popKeyEvents()
 	end
 	onExit()
 end
@@ -313,12 +350,6 @@ struct MouseEvent <: InputEvent
 	y::Float64
 end
 const NO_MOUSE_EVENT = MouseEvent(0,false,0,0,0,0)
-struct KeyEvent <: InputEvent
-	key::UInt8
-	pressed::Bool #true: pressed, false: released
-	time::UInt64 #in nanoseconds
-end
-const NO_KEY_EVENT = KeyEvent(0,false,0)
 
 mouseEvents = fill(NO_MOUSE_EVENT,8) #last mouseEvent for each of 8 mousebuttons
 poppedMouseEvents = fill(NO_MOUSE_EVENT,8) #temporary fixed storage for mouseEvents
@@ -354,32 +385,25 @@ function popMouseEvents()
 	#poppedMouseEvents .= mouseEvents #copies the mouseEvents to create the snapshot poppedMouseEvents
 	mouseEvents .= [NO_MOUSE_EVENT]
 end
+
+struct KeyEvent <: InputEvent
+	key::GLFW.Key
+	scancode::Int32
+	action::GLFW.Action #true: pressed, false: released
+	mods::Int32
+	time::UInt64 #in nanoseconds
+end
+keyEvents = Buffer{KeyEvent}(1024)
+poppedKeyEvents = KeyEvent[]
+
+popKeyEvents() = global poppedKeyEvents = popall!(keyEvents)
+
 function resetinputbuffers()
 	global mouseEvents = fill(NO_MOUSE_EVENT,8)
-	global snappedMouseEvents = fill(NO_MOUSE_EVENT,8)
+	global poppedMouseEvents = fill(NO_MOUSE_EVENT,8)
+	global keyEvents = Buffer{KeyEvent}(1024)
+	global poppedKeyEvents = KeyEvent[]
 end
-
-
-# function key()
-# 	return
-# end
-
-# mutable struct Buffer{T}
-# 	size::Int
-# 	last::Int
-# 	data::Vector{T}
-# end
-# Buffer{T}(size::Int) where T = Buffer{T}(size,0,Vector{T}(undef,size))
-# clear(b::Buffer) = b.last = 0
-# getindex(b::Buffer, i::Int) = i <= b.last ? b.data[i] : error("Attempted to access buffer at an invalid location")
-#
-# mousebuffer = Buffer{MouseEvent}(100)
-# keybuffer = Buffer{KeyEvent}(100)
-# function resetinputbuffers()
-# 	global mousebuffer, keybuffer
-# 	clear(mousebuffer)
-# 	clear(keybuffer)
-# end
 
 #################################
 # Graphical objects and drawing #
@@ -620,13 +644,33 @@ function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,tex::Array{UInt8,3},c::C
 
 	Sprite(textureP[1],width,height,isrgba,vertices,c,α)
 end
-# Calculates the intersection between p1--p3 and p2--p4
+Sprite(tex::Array{UInt8,3},c::Color=COLOR_WHITE,α::Integer=255) = Sprite(Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0), tex,c,α)
+
+# Construct Sprite with existing texture pointer
+function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,textureP::Integer,c::Color=COLOR_WHITE,α::Integer=255)
+	# width and height of existing texture can be found as follows:
+	glBindTexture(GL_TEXTURE_2D, textureP)
+	w = UInt[0]; h = UInt[0]; αsize = UInt[0]; 
+	miplevel = 0
+	glGetTexLevelParameteriv(GL_TEXTURE_2D, miplevel, GL_TEXTURE_WIDTH, w);
+	glGetTexLevelParameteriv(GL_TEXTURE_2D, miplevel, GL_TEXTURE_HEIGHT, h);
+	glGetTexLevelParameteriv(GL_TEXTURE_2D, miplevel, GL_TEXTURE_ALPHA_SIZE, αsize);
+	width = w[1]; height = h[1]; isrgba = αsize[1] > 0
+
+	vertices = [crosspoint(p1,p2,p3,p4),p1,p2,p3,p4]
+	Sprite(textureP,width,height,isrgba,vertices,c,α)
+end
+Sprite(textureP::Integer,c::Color=COLOR_WHITE,α::Integer=255) = Sprite(Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0), textureP,c,α)
+
+# Calculates the center of mass of the given 4 vertices
+# (previously calculated the intersection between p1--p3 and p2--p4)
 function crosspoint(p1::Vec2d,p3::Vec2d,p2::Vec2d,p4::Vec2d)
-	A = [p2.y-p1.y	p1.x-p2.x;
-		 p4.y-p3.y	p3.x-p4.x]
-	b = [p2.y*p1.x-p2.x*p1.y, p4.y*p3.x-p4.x*p3.y]
-	p = A\b
-	Vec2d(p...)
+	# A = [p2.y-p1.y	p1.x-p2.x;
+	# 	 p4.y-p3.y	p3.x-p4.x]
+	# b = [p2.y*p1.x-p2.x*p1.y, p4.y*p3.x-p4.x*p3.y]
+	# p = A\b
+	# Vec2d(p...)
+	(p1+p2+p3+p4)/4
 end
 Sprite(p::Vec2d,v1::Vec2d,v2::Vec2d,tex,c=COLOR_WHITE,α=255) = Sprite(p,p+v1,p+v1+v2,p+v2,tex,c,α)
 Sprite(p::Vec2d,tex,c=COLOR_WHITE,α=255) = Sprite(p,VEC_EX,VEC_EY,tex,c,α)

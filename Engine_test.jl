@@ -7,11 +7,11 @@ destroyWindow()
 createWindow()
 vsync(true)
 wireframe(false)
-tex_dragon = load_texture("resources/dragon.png")
+tex_dragon = load_texture("resources/dragon2.png")
 points = [Vec2d(-0.4,-0.4), Vec2d(0.4,-0.4), Vec2d(0.4,0.4), Vec2d(-0.4,0.4)]
 sprite = Sprite(points..., tex_dragon)
 circles = Circle.(points,0.02,[COLOR_GREEN])
-bgtex = load_texture("resources/background.jpg")
+bgtex = load_texture("resources/background2.jpg")
 bg = Sprite(Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0), bgtex)
 selected = 1
 #translate!(camera,Vec2d(0.2,0.4))
@@ -21,7 +21,7 @@ function onUpdate(t_elapsed)
     clear(COLOR_WHITE)
     draw(bg)
     if mouse(0).pressed && mouse(0).mods < 128 #first click, update the selected
-        for i in 1:length(circles)
+        for i in eachindex(circles)
             if dist(mouse(),loc(circles[i])) < 0.02
                 selected = i
                 color!(circles[i], COLOR_RED)
