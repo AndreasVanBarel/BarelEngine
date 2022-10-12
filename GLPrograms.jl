@@ -2,13 +2,8 @@ module GLPrograms
 
 export generatePrograms
 
-export createVertexShader, createFragmentShader
-export createProg
-
-export createComputeShader
-export createComputeProg
-
 using ModernGL
+using Shaders
 
 struct Programs
 	triangle::UInt32
@@ -21,35 +16,6 @@ struct Programs
 	sprite_colorLoc::Int32
 	sprite_textureLoc::Int32
 	sprite_camLoc::Int32
-end
-
-# Compilation and linking of shaders
-function checkCompilation(shader::UInt32)
-	success = Int32[-1]
-	glGetShaderiv(shader, GL_COMPILE_STATUS, success)
-	if success[1]!=1
-		infoLog_length = Int32[0]
-		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, infoLog_length)
-		infoLog = Vector{UInt8}(undef,infoLog_length[1]+1) #+1 might be necessary to store the C string terminator
-	    glGetShaderInfoLog(shader, infoLog_length[1], infoLog_length, infoLog)
-		s_infoLog = String(infoLog[1:infoLog_length[1]])
-	    println("ERROR::SHADER::COMPILATION_FAILED\n"*s_infoLog)
-	end
-	return success[1]
-end
-
-function checkLinking(program::UInt32)
-	success = Int32[-1]
-	glGetProgramiv(program, GL_LINK_STATUS, success)
-	if success[1]!=1
-		infoLog_length = Int32[0]
-		glGetProgramiv(program, GL_INFO_LOG_LENGTH, infoLog_length)
-		infoLog = Vector{UInt8}(undef,infoLog_length[1]+1) #+1 might be necessary to store the C string terminator
-		glGetProgramInfoLog(program, infoLog_length[1], infoLog_length, infoLog)
-		s_infoLog = String(infoLog[1:infoLog_length[1]])
-		println("ERROR::PROGRAM::LINKING_FAILED\n"*s_infoLog)
-	end
-	return success[1]
 end
 
 # Vertex Shader for Triangle
@@ -138,30 +104,6 @@ void main()
 #FragColor = texture(tex, uv)*color;
 #FragColor = vec4(uv,1.0f,1.0f);
 
-function createVertexShader(src::String)
-	shader = glCreateShader(GL_VERTEX_SHADER) #UInt32
-	glShaderSource(shader, 1, [src], [length(src)])
-	glCompileShader(shader)
-	checkCompilation(shader)
-	return shader
-end
-function createFragmentShader(src::String)
-	shader = glCreateShader(GL_FRAGMENT_SHADER) #UInt32
-	glShaderSource(shader, 1, [src], [length(src)])
-	glCompileShader(shader)
-	checkCompilation(shader)
-	return shader
-end
-function createProg(vs_src::String, fs_src::String)
-	vs = createVertexShader(vs_src) # vertex shader
-	fs = createFragmentShader(fs_src) # fragment shader
-	prog = glCreateProgram() #UInt32
-	glAttachShader(prog, vs)
-	glAttachShader(prog, fs)
-	glLinkProgram(prog)
-	checkLinking(prog)
-	return prog
-end
 function generatePrograms()
 	triangle_prog = createProg(triangle_vs_src, triangle_fs_src)
 	triangle_colorLoc = glGetUniformLocation(triangle_prog, "color")
@@ -178,20 +120,4 @@ function generatePrograms()
 			sprite_prog, sprite_colorLoc, sprite_texLoc, sprite_camLoc)
 end
 
-## Compute Shaders 
-function createComputeShader(src::String)
-	shader = glCreateShader(GL_COMPUTE_SHADER) #UInt32
-	glShaderSource(shader, 1, [src], [length(src)])
-	glCompileShader(shader)
-	checkCompilation(shader)
-	return shader
-end
-function createComputeProg(cs_src::String)
-	cs = createComputeShader(cs_src) # compute shader
-	prog = glCreateProgram() #UInt32
-	glAttachShader(prog, cs)
-	glLinkProgram(prog)
-	checkLinking(prog)
-	return prog
-end
 end

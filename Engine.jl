@@ -1,7 +1,7 @@
 # The engine responsible for drawing and input and output
 module Engine
 
-export createWindow, destroyWindow, width, height, n_to_p, p_to_n
+export createWindow, destroyWindow, n_to_p, p_to_n
 export vsync, wireframe
 export loop
 
