@@ -10,27 +10,26 @@ workgroupsize = (8,8)
 
 createWindow(width,height)
 
-tex = Texture(TYPE_RGBA32F,2) # Allocate texture name
-set_zeros(tex, width, height)
+tex = Texture(TYPE_RGBA32F,2) # Generate texture name
+allocate(tex, width, height) # Allocate memory
  
 prog = compile_file("cs_mandelbrot.glsl")
 
 # Use program and bind texture/memory
 im_unit = 0 # (corresponds to binding in shader)
-bind(tex,im_unit)
+bind_image_unit(im_unit, tex)
 
 ### Setting colormap texture 
 # Storing the color map to the GPU
-cmapP = UInt32[0]
-glGenTextures(1, cmapP)
+cmap = Texture(TYPE_RGBA8,1)
 
 function set_colormap(colormap, interpolate=false)
     colormap = UInt8.(colormap)
 
-    glActiveTexture(GL_TEXTURE1) # now making changes to texture unit 1
-    glBindTexture(GL_TEXTURE_1D, cmapP[1]) # binds texture to texture unit 1
+    bind_texture_unit(1, cmap)
 
-    glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA, length(colormap)÷4, 0, GL_RGBA, GL_UNSIGNED_BYTE, colormap)
+    set(cmap, colormap) # should call the below stuff
+    # glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA, length(colormap)÷4, 0, GL_RGBA, GL_UNSIGNED_BYTE, colormap)
 
     glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_REPEAT)
     glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_T, GL_REPEAT)
@@ -42,15 +41,15 @@ function set_colormap(colormap, interpolate=false)
 end
 
 #define colormap
-colormap = UInt8[   255,   0,   0, 255,
-                    255, 255,   0, 255,
-                      0, 255,   0, 255,
-                      0, 255, 255, 255,
-                      0,   0, 255, 255,
-                    255,   0, 255, 255] # Fully saturated color map
+colormap = collect(UInt8[   255   0   0 255
+                            255 255   0 255
+                              0 255   0 255
+                              0 255 255 255
+                              0   0 255 255
+                            255   0 255 255]') # Fully saturated color map
 
-# colormap = UInt8[i for i in 0:255]'.*ones(UInt8,4); colormap[4,:].=0xff;  # Black & White color map
-# colormap = [0,0,255,255] .+ [i for i in 0:255]'.*[1,0,-1,0] # Red & Blue color map
+colormap = UInt8[i for i in 0:255]'.*ones(UInt8,4); colormap[4,:].=0xff; colormap  # Black & White color map
+#colormap = [0,0,255,255] .+ [i for i in 0:255]'.*[1,0,-1,0] # Red & Blue color map
 
 set_colormap(colormap, true)
 
@@ -61,18 +60,18 @@ center = Vec2d(-0.25,0.0)
 scale = 1.5f0
 maxit = 64
 
-click_loc = mouse() #mouse location at moment of mouse click
-click_center = center #center at moment of mouse click
+click_loc = VEC_ORIGIN #mouse location at moment of mouse click
+click_center = VEC_ORIGIN #center at moment of mouse click
 
-key1 = 0 # 1 for pressed -> zooming in 
-key2 = 0 # 1 for pressed -> zooming out
+key_zoom_in = 0 # 1 for pressed -> zooming in 
+key_zoom_out = 0 # 1 for pressed -> zooming out
 
 cycling = true
 cycling_state = 0
 
 t_prev = -Inf
 function onUpdate(t_elapsed)
-    global t_prev, click_loc, center, click_center, scale, key1, key2, maxit, cycling, cycling_state
+    global t_prev, click_loc, center, click_center, scale, key_zoom_in, key_zoom_out, maxit, cycling, cycling_state
 
     ## Time etc 
     Δtime = (t_prev == -Inf ? 0 : t_elapsed - t_prev)
@@ -94,16 +93,16 @@ function onUpdate(t_elapsed)
 
     function process_key_events(event)
         if event.key == GLFW.KEY_PERIOD && event.action == GLFW.PRESS
-            key1 = 1
+            key_zoom_in = 1
         end
         if event.key == GLFW.KEY_PERIOD && event.action == GLFW.RELEASE
-            key1 = 0
+            key_zoom_in = 0
         end
         if event.key == GLFW.KEY_COMMA && event.action == GLFW.PRESS
-            key2 = 1
+            key_zoom_out = 1
         end
         if event.key == GLFW.KEY_COMMA && event.action == GLFW.RELEASE
-            key2 = 0
+            key_zoom_out = 0
         end
         if event.key == GLFW.KEY_EQUAL && event.action == GLFW.PRESS
             maxit = maxit*2
@@ -117,8 +116,8 @@ function onUpdate(t_elapsed)
     end 
     process_key_events.(poppedKeyEvents)
     
-    (key1>0) && (scale *= 0.5^Δtime)
-    (key2>0) && (scale *= 2.0^Δtime)
+    (key_zoom_in>0) && (scale *= 0.5^Δtime)
+    (key_zoom_out>0) && (scale *= 2.0^Δtime)
 
     #DEBUG (showing the input events)
     # for i=0:7
@@ -148,8 +147,8 @@ function onUpdate(t_elapsed)
 end
 loop(onUpdate)
 
-glDeleteTextures(1,[tex.pointer])
-glDeleteTextures(1,cmapP)
+free(tex)
+free(cmap)
 destroyWindow()
 
 

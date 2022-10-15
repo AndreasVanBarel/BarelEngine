@@ -13,16 +13,17 @@ export createComputeShader, createComputeProg, compile, compile_file
 export execute
 
 export gen_texture_pointer
-export Texture, bind, shape, size, set_zeros
+export Texture, free, bind, bind_texture_unit, bind_image_unit, shape, size, allocate
 export TextureType
 export get_julia_type, get_nb_values
 export TYPE_R32F, TYPE_RG32F, TYPE_RGB32F, TYPE_RGBA32F
+export TYPE_RGB8, TYPE_RGBA8
 
 export set, get, get!
 
 import Base: bind, size, ndims, get
 
-##
+## General
 const null = Ptr{Nothing}() # Note: same as C_NULL
 
 function debug(s)
@@ -31,7 +32,7 @@ function debug(s)
     err == 0 || @error("GL Error code $err")
 end
 
-## Compilation and linking of shaders
+## Compiling and linking shaders
 function checkCompilation(shader::UInt32)
 	success = Int32[-1]
 	glGetShaderiv(shader, GL_COMPILE_STATUS, success)
@@ -102,7 +103,6 @@ function createComputeProg(cs_src::String)
 	return prog
 end
 
-## Compiling
 # filepath containing code, returning pointer to GPU code. 
 function compile_file(filepath::String)
     shader_code = open(filepath) do io read(io, String) end
@@ -110,6 +110,7 @@ function compile_file(filepath::String)
 end
 compile(shader_code::String) = createComputeProg(shader_code)
 
+## Execution
 function execute(prog, workgroups_x::Integer, workgroups_y::Integer, workgroups_z::Integer)
     glUseProgram(prog)
     glDispatchCompute(workgroups_x, workgroups_y, workgroups_z) # Dispatch (i.e., execute)
@@ -133,7 +134,7 @@ set(loc::Integer, v1::Integer, v2::Integer, v3::Integer, v4::Integer) = glUnifor
 
 ## GPU Data
 
-# !Texture is will not be bound to anything (not to GL_TEXTURE_2D or any other)
+# !Texture will not be bound to anything (not to GL_TEXTURE_2D or any other)
 function gen_texture_pointer()::UInt32
     # Allocate texture name (textureP[1]) and bind it to GL_TEXTURE_2D
     texturePP = UInt32[0] # texturePP[1] will contain pointer to texture memory
@@ -151,6 +152,9 @@ const TYPE_R32F = TextureType(GL_R32F, GL_RED, GL_FLOAT)
 const TYPE_RG32F = TextureType(GL_RG32F, GL_RG, GL_FLOAT)
 const TYPE_RGB32F = TextureType(GL_RGB32F, GL_RGB, GL_FLOAT)
 const TYPE_RGBA32F = TextureType(GL_RGBA32F, GL_RGBA, GL_FLOAT)
+const TYPE_RGBA8 = TextureType(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE)
+const TYPE_RGB8 = TextureType(GL_RGB, GL_RGB, GL_UNSIGNED_BYTE)
+
 function GL_TEXTURE(D::UInt8)::UInt32
     D==1 && return GL_TEXTURE_1D
     D==2 && return GL_TEXTURE_2D
@@ -163,14 +167,16 @@ function get_julia_type(t::TextureType)
     t.internal_format == GL_RG32F && return Float32
     t.internal_format == GL_RGB32F && return Float32
     t.internal_format == GL_RGBA32F && return Float32
+    t.internal_format == GL_RGB && return UInt8
+    t.internal_format == GL_RGBA && return UInt8
     return Nothing
 end
-function get_nb_values(t::TextureType)::UInt8
-    t.format == GL_RED && return 0x01
-    t.format == GL_RG && return 0x02
-    t.format == GL_RGB && return 0x03
-    t.format == GL_RGBA && return 0x04
-    return 0x01
+function get_nb_values(t::TextureType)
+    t.format == GL_RED && return 1
+    t.format == GL_RG && return 2
+    t.format == GL_RGB && return 3
+    t.format == GL_RGBA && return 4
+    return 1
 end
 
 struct Texture 
@@ -181,8 +187,8 @@ end
 function Texture(type::TextureType,D)
     tex = Texture(gen_texture_pointer(),type,UInt8(D))
 
+    # Setting some default values
     bind(tex)
-
     glTexParameteri(GL_TEXTURE(tex.D), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
     glTexParameteri(GL_TEXTURE(tex.D), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
     glTexParameteri(GL_TEXTURE(tex.D), GL_TEXTURE_MAG_FILTER, GL_NEAREST)
@@ -190,16 +196,26 @@ function Texture(type::TextureType,D)
 
     return tex
 end
-bind(tex::Texture) = glBindTexture(GL_TEXTURE(tex.D), tex.pointer)
-# function bind(tex::Texture, tex_unit::Integer) 
-#     glActiveTexture(GL_TEXTURE0 + tex_unit)
-#     glBindTexture(GL_TEXTURE(tex.D), tex.pointer)
-# end
-# Binds texture to image unit
-function bind(tex::Texture, im_unit::Integer) 
-    glBindImageTexture(im_unit, tex.pointer, 0, GL_FALSE, 0, GL_READ_WRITE, tex.type.internal_format) # "bind a level of a texture to an image unit"
+free(tex::Texture) = glDeleteTextures(1,[tex.pointer]) # Deallocates and frees on the GPU
+
+# Binds currently active texture unit's GL_TEXTURE_X to tex, where X depends on tex's properties.
+bind(tex::Texture) = glBindTexture(GL_TEXTURE(tex.D), tex.pointer) 
+
+# Sets currently active texture unit 
+bind_texture_unit(tex_unit::Integer) = glActiveTexture(GL_TEXTURE0 + tex_unit) 
+
+# Sets currently active texture unit and binds given tex to that unit
+function bind_texture_unit(tex_unit::Integer, tex::Texture) 
+    bind_texture_unit(tex_unit)
+    glBindTexture(GL_TEXTURE(tex.D), tex.pointer)
 end
-free(tex::Texture) = glDeleteTextures(1,tex.pointer)
+
+# binds a texture to an image unit
+function bind_image_unit(image_unit::Integer, tex::Texture)
+    miplevel = 0
+    glBindImageTexture(image_unit, tex.pointer, miplevel, GL_FALSE, 0, GL_READ_WRITE, tex.type.internal_format) # "bind a level of a texture to an image unit"
+    # First variable is image unit index, This corresponds to the "binding=<image_unit>" part in the shader
+end
 
 # returns all of the applicable (width,height,depth) 
 function shape(tex)
@@ -220,28 +236,14 @@ function size(tex)
 end
 ndims(tex) = get_nb_values(tex.type) == 1 ? Int(tex.D) : Int(tex.D + 1)
 
-# function set_zeros(tex::Texture, width::Integer)
-#     glBindTexture(GL_TEXTURE(tex.D), tex.pointer) # GL_TEXTURE_1D is then an 'alias' for textureP
-#     glTexImage2D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, width, 0, tex.type.format, tex.type.type, null) # fills the texture with null values
-# end
-# function set_zeros(tex::Texture, width::Integer, height::Integer)
-#     glBindTexture(GL_TEXTURE(tex.D), tex.pointer) # GL_TEXTURE_2D is then an 'alias' for textureP
-#     glTexImage2D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, width, height, 0, tex.type.format, tex.type.type, null) # fills the texture with null values
-# end
-# function set_zeros(tex::Texture, width::Integer, height::Integer, depth::Integer)
-#     glBindTexture(GL_TEXTURE(tex.D), tex.pointer) # GL_TEXTURE_3D is then an 'alias' for textureP
-#     glTexImage2D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, width, height, depth, 0, tex.type.format, tex.type.type, null) # fills the texture with null values
-# end
-function set_zeros(tex::Texture, shape...)
-    tex.D == length(shape) || @error("Tried to set $(tex.D)D texture with $(length(size))D values")
-    glBindTexture(GL_TEXTURE(tex.D), tex.pointer) # GL_TEXTURE_1D is then an 'alias' for textureP
-    glTexImage2D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, null) # fills the texture with null values
-end
-
-
-function bind_image_texture(tex::Texture, binding::Integer)
-    glBindImageTexture(binding, tex.pointer, 0, GL_FALSE, 0, GL_READ_WRITE, tex.type.type) # "bind a level of a texture to an image unit"
-    # First variable is binding index, 0 in this case. This corresponds to the "binding=0" part in the shader
+# Allocates memory for the texture accomodating the given shape
+function allocate(tex::Texture, shape...) 
+    tex.D == length(shape) || @error("Tried to init $(tex.D)D texture with $(length(size))D shape")
+    bind(tex)
+    tex.D==1 && glTexImage1D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, null) 
+    tex.D==2 && glTexImage2D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, null) 
+    tex.D==3 && glTexImage3D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, null) 
+    return 
 end
 
 # Sets values in given Texture tex
@@ -249,7 +251,10 @@ function set(tex::Texture, values::Array) #values is essentially a pointer to a 
     get_julia_type(tex.type) == eltype(values) || @error("Tried to set $(get_julia_type(tex.type)) texture with $(eltype(values)) values")
     shape = size(values)[end-tex.D+1:end] #gets last tex.D entries in size(values)
     bind(tex)
-    glTexImage2D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, values)
+    tex.D==1 && glTexImage1D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, values)
+    tex.D==2 && glTexImage2D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, values)
+    tex.D==3 && glTexImage3D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, values)
+    return
 end
 
 # Gets values to currently bound GL_TEXTURE_2D

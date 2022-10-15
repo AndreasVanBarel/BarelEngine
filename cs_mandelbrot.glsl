@@ -2,12 +2,12 @@
 
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 layout (rgba32f, binding = 0) uniform image2D out_tex; //must be the same format as in the host program
-//layout (rgba32f, binding = 1) uniform image1D colormap; //color values to cycle through
-uniform sampler1D colors;
+uniform sampler1D colors; //color map
    
 layout (location = 1) uniform vec2 center;
 layout (location = 2) uniform float scale;  
 // center (0.0) and scale 1 give unit square
+
 layout (location = 3) uniform int maxit;
 
 layout (location = 4) uniform float p1;    

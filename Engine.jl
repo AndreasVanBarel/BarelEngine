@@ -36,6 +36,8 @@ using LinearAlgebra
 
 # Submodules
 import GLPrograms
+import Shaders.Texture
+import Shaders.free #To extend this method
 using ResourceIO
 
 ###########################
@@ -661,6 +663,9 @@ function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,textureP::Integer,c::Col
 	Sprite(textureP,width,height,isrgba,vertices,c,α)
 end
 Sprite(textureP::Integer,c::Color=COLOR_WHITE,α::Integer=255) = Sprite(Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0), textureP,c,α)
+
+# Construct Sprite with existing Shaders.Texture object 
+Sprite(tex::Shaders.Texture,c::Color=COLOR_WHITE,α::Integer=255) = Sprite(Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0), tex.pointer,c,α)
 
 # Calculates the center of mass of the given 4 vertices
 # (previously calculated the intersection between p1--p3 and p2--p4)
