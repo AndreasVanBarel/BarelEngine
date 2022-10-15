@@ -5,14 +5,14 @@ using GLFW
 using Shaders
 
 # texture size
-width = 1024; height = 1024; # width, height is actually more abstractly worksize_x, worksize_y
+width = 2048; height = 2048; # width, height is actually more abstractly worksize_x, worksize_y
 workgroupsize = (8,8)
 
 createWindow(width,height)
 
 tex = Texture(TYPE_RGBA32F,2) # Allocate texture name
 set_zeros(tex, width, height)
-
+ 
 prog = compile_file("cs_mandelbrot.glsl")
 
 # Use program and bind texture/memory
