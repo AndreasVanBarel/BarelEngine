@@ -142,10 +142,9 @@ function onUpdate(t_elapsed)
     set(prog, "p1", p1)
     set(prog, "p2", p2)
 
-    draw(sprite)
-
     execute(prog,ceil(Int,width/workgroupsize[1]), ceil(Int,height/workgroupsize[1]), 1)
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT)
+    draw(sprite)
 end
 loop(onUpdate)
 
