@@ -21,7 +21,7 @@ set(tex1, initial_values)
 allocate(tex2, width, height)
 allocate(show_tex, width, height)
  
-prog = compile_file("cs_game_of_life.glsl")
+prog = compile_file("Shaders/cs_game_of_life.glsl")
 
 bind_image_unit(0, tex1, GL_R8UI)
 # glBindImageTexture(0, tex1.pointer, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R8UI) # Last parameter gives format in the shader, could be different from image format.

@@ -14,7 +14,7 @@ createWindow(width,height)
 tex = Texture(TYPE_RGBA32F,2) # Generate texture name
 allocate(tex, width, height) # Allocate memory
  
-prog = double_precision ? compile_file("cs_mandelbrot_double.glsl") : compile_file("cs_mandelbrot.glsl")
+prog = double_precision ? compile_file("Shaders/cs_mandelbrot_double.glsl") : compile_file("Shaders/cs_mandelbrot.glsl")
 
 # Use program and bind texture/memory
 im_unit = 0 # (corresponds to binding in shader)
@@ -73,7 +73,7 @@ cycling_state = 0
 t_prev = -Inf
 
 function onUpdate(t_elapsed)
-    global t_prev, click_loc, center, click_center, scale, key_zoom_in, key_zoom_out, maxit, cycling, cycling_state, T
+    global t_prev, scale, center, click_center, click_loc, key_zoom_in, key_zoom_out, maxit, cycling, cycling_state, T
 
     ## Time etc 
     Δtime = (t_prev == -Inf ? 0 : t_elapsed - t_prev)

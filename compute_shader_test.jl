@@ -35,7 +35,7 @@ glBindImageTexture(0, textureP[1], 0, GL_FALSE, 0, GL_READ_WRITE, type) # "bind 
 # First variable is binding index, 0 in this case. This corresponds to the "binding=0" part in the shader
 
 # shader_code = open("cs_rgba32f_t.glsl") do io read(io, String) end
-shader_code = open("cs_mandelbrot.glsl") do io read(io, String) end
+shader_code = open("Shaders/cs_mandelbrot.glsl") do io read(io, String) end
 
 prog = createComputeProg(shader_code)
 
