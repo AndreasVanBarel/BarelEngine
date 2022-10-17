@@ -17,7 +17,7 @@ export Texture, free, bind, bind_texture_unit, bind_image_unit, shape, size, all
 export TextureType
 export get_julia_type, get_nb_values
 export TYPE_R32F, TYPE_RG32F, TYPE_RGB32F, TYPE_RGBA32F
-export TYPE_RGB8, TYPE_RGBA8
+export TYPE_R8, TYPE_RG8, TYPE_RGB8, TYPE_RGBA8
 
 export set, get, get!
 
@@ -29,6 +29,12 @@ const null = Ptr{Nothing}() # Note: same as C_NULL
 function debug(s)
     err = glGetError()
     println("s with errors: $err")
+    err == 0 || @error("GL Error code $err")
+end
+
+# Should remove this; errors should probably be checked somewhere centrally. (?)
+function check_errors()
+    err = glGetError()
     err == 0 || @error("GL Error code $err")
 end
 
@@ -119,18 +125,22 @@ end
 ## Utility functions for quickly setting integer and float uniforms
 function set(prog::UInt32, identifier::String, values...)
     loc = glGetUniformLocation(prog, identifier)
-    (loc == -1) && @warn("identifier not found in shader (loc=-1)")
+    (loc == -1) && @warn("identifier not found in shader (loc=$loc)")
     glUseProgram(prog)
     set(loc, values...)
 end
-set(loc::Integer, value::Real) = glUniform1f(loc,Float32(value))
-set(loc::Integer, v1::Real, v2::Real) = glUniform2f(loc,v1,v2)
-set(loc::Integer, v1::Real, v2::Real, v3::Real) = glUniform3f(loc,v1,v2,v3)
-set(loc::Integer, v1::Real, v2::Real, v3::Real, v4::Real) = glUniform4f(loc,v1,v2,v3,v4)
-set(loc::Integer, value::Integer) = glUniform1i(loc,Int32(value))
-set(loc::Integer, v1::Integer, v2::Integer) = glUniform2i(loc,v1,v2)
-set(loc::Integer, v1::Integer, v2::Integer, v3::Integer) = glUniform3i(loc,v1,v2,v3)
-set(loc::Integer, v1::Integer, v2::Integer, v3::Integer, v4::Integer) = glUniform4i(loc,v1,v2,v3,v4)
+set(loc::Integer, value::Float32) = glUniform1f(loc,value)
+set(loc::Integer, v1::Float32, v2::Float32) = glUniform2f(loc,v1,v2)
+set(loc::Integer, v1::Float32, v2::Float32, v3::Float32) = glUniform3f(loc,v1,v2,v3)
+set(loc::Integer, v1::Float32, v2::Float32, v3::Float32, v4::Float32) = glUniform4f(loc,v1,v2,v3,v4)
+set(loc::Integer, value::Float64) = glUniform1d(loc,value)
+set(loc::Integer, v1::Float64, v2::Float64) = glUniform2d(loc,v1,v2)
+set(loc::Integer, v1::Float64, v2::Float64, v3::Float64) = glUniform3d(loc,v1,v2,v3)
+set(loc::Integer, v1::Float64, v2::Float64, v3::Float64, v4::Float64) = glUniform4d(loc,v1,v2,v3,v4)
+set(loc::Integer, value::Int32) = glUniform1i(loc,value)
+set(loc::Integer, v1::Int32, v2::Int32) = glUniform2i(loc,v1,v2)
+set(loc::Integer, v1::Int32, v2::Int32, v3::Int32) = glUniform3i(loc,v1,v2,v3)
+set(loc::Integer, v1::Int32, v2::Int32, v3::Int32, v4::Int32) = glUniform4i(loc,v1,v2,v3,v4)
 
 ## GPU Data
 
@@ -152,8 +162,11 @@ const TYPE_R32F = TextureType(GL_R32F, GL_RED, GL_FLOAT)
 const TYPE_RG32F = TextureType(GL_RG32F, GL_RG, GL_FLOAT)
 const TYPE_RGB32F = TextureType(GL_RGB32F, GL_RGB, GL_FLOAT)
 const TYPE_RGBA32F = TextureType(GL_RGBA32F, GL_RGBA, GL_FLOAT)
-const TYPE_RGBA8 = TextureType(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE)
-const TYPE_RGB8 = TextureType(GL_RGB, GL_RGB, GL_UNSIGNED_BYTE)
+const TYPE_R8 = TextureType(GL_R8, GL_RED, GL_UNSIGNED_BYTE)
+const TYPE_RG8 = TextureType(GL_RG8, GL_RG, GL_UNSIGNED_BYTE)
+const TYPE_RGB8 = TextureType(GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE)
+const TYPE_RGBA8 = TextureType(GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE)
+
 
 function GL_TEXTURE(D::UInt8)::UInt32
     D==1 && return GL_TEXTURE_1D
@@ -167,8 +180,10 @@ function get_julia_type(t::TextureType)
     t.internal_format == GL_RG32F && return Float32
     t.internal_format == GL_RGB32F && return Float32
     t.internal_format == GL_RGBA32F && return Float32
-    t.internal_format == GL_RGB && return UInt8
-    t.internal_format == GL_RGBA && return UInt8
+    t.internal_format == GL_R8 && t.type == GL_UNSIGNED_BYTE && return UInt8
+    t.internal_format == GL_RG8 && t.type == GL_UNSIGNED_BYTE && return UInt8
+    t.internal_format == GL_RGB8 && t.type == GL_UNSIGNED_BYTE && return UInt8
+    t.internal_format == GL_RGBA8 && t.type == GL_UNSIGNED_BYTE && return UInt8 
     return Nothing
 end
 function get_nb_values(t::TextureType)
@@ -254,6 +269,7 @@ function set(tex::Texture, values::Array) #values is essentially a pointer to a 
     tex.D==1 && glTexImage1D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, values)
     tex.D==2 && glTexImage2D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, values)
     tex.D==3 && glTexImage3D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, values)
+    check_errors()
     return
 end
 

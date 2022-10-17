@@ -1,12 +1,12 @@
 #version 430 core
 
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
-layout (rgba32f, binding = 0) uniform image2D out_tex; //must be the same format as in the host program
+layout (binding = 0) uniform writeonly image2D out_tex; //must be the same format as in the host program
 uniform sampler1D colors; //color map
    
 layout (location = 1) uniform vec2 center;
 layout (location = 2) uniform float scale;  
-// center (0.0) and scale 1 give unit square
+// center 0.0 and scale 1.0 give unit square
 
 layout (location = 3) uniform int maxit;
 
@@ -23,7 +23,7 @@ void main() {
     npos.x = float(pos.x)/(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
     npos.y = float(pos.y)/(gl_NumWorkGroups.y * gl_WorkGroupSize.y);
 
-    //normalized position between  and 1
+    //normalized position between -1.0 and 1.0
     npos.x = (npos.x*2-1.0)*scale + center.x;
 	npos.y = (npos.y*2-1.0)*scale + center.y;
 

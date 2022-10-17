@@ -36,7 +36,7 @@ using LinearAlgebra
 
 # Submodules
 import GLPrograms
-import Shaders.Texture
+import Shaders
 import Shaders.free #To extend this method
 using ResourceIO
 
