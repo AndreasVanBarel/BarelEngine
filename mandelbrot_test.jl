@@ -7,7 +7,7 @@ using Shaders
 # texture size
 width = 2048; height = 2048; # width, height is actually more abstractly worksize_x, worksize_y
 workgroupsize = (8,8)
-double_precision = true
+double_precision = false
 
 createWindow(width,height)
 
@@ -62,7 +62,7 @@ scale = T(1.75)
 maxit = 64
 
 click_loc = VEC_ORIGIN #mouse location at moment of mouse click
-click_center = VEC_ORIGIN #center at moment of mouse click
+click_center = center #center at moment of mouse click
 
 key_zoom_in = 0 # 1 for pressed -> zooming in 
 key_zoom_out = 0 # 1 for pressed -> zooming out
@@ -89,8 +89,6 @@ function onUpdate(t_elapsed)
         Δmouse = mouse_loc - click_loc
         center = click_center .+ [Δmouse.y*scale, -Δmouse.x*scale]
         # println(Δmouse)
-    else
-        # no click events to process
     end
 
     function process_key_events(event)

@@ -154,9 +154,9 @@ function gen_texture_pointer()::UInt32
 end
 
 struct TextureType
-    internal_format::UInt32
-    format::UInt32
-    type::UInt32
+    internal_format::UInt32 # Format of each pixel on the GPU
+    format::UInt32 # Number of components per pixel
+    type::UInt32 # Format of each component on the CPU side
 end
 const TYPE_R32F = TextureType(GL_R32F, GL_RED, GL_FLOAT)
 const TYPE_RG32F = TextureType(GL_RG32F, GL_RG, GL_FLOAT)
@@ -164,9 +164,8 @@ const TYPE_RGB32F = TextureType(GL_RGB32F, GL_RGB, GL_FLOAT)
 const TYPE_RGBA32F = TextureType(GL_RGBA32F, GL_RGBA, GL_FLOAT)
 const TYPE_R8 = TextureType(GL_R8, GL_RED, GL_UNSIGNED_BYTE)
 const TYPE_RG8 = TextureType(GL_RG8, GL_RG, GL_UNSIGNED_BYTE)
-const TYPE_RGB8 = TextureType(GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE)
+const TYPE_RGB8 = TextureType(GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE) # !Must do bind_image_unit(_, _, GL_RGBA8) since GL_RGB8 not defined, see https://registry.khronos.org/OpenGL-Refpages/gl4/html/glBindImageTexture.xhtml
 const TYPE_RGBA8 = TextureType(GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE)
-
 
 function GL_TEXTURE(D::UInt8)::UInt32
     D==1 && return GL_TEXTURE_1D
@@ -176,14 +175,8 @@ function GL_TEXTURE(D::UInt8)::UInt32
     return UInt32(0)
 end
 function get_julia_type(t::TextureType)
-    t.internal_format == GL_R32F && return Float32
-    t.internal_format == GL_RG32F && return Float32
-    t.internal_format == GL_RGB32F && return Float32
-    t.internal_format == GL_RGBA32F && return Float32
-    t.internal_format == GL_R8 && t.type == GL_UNSIGNED_BYTE && return UInt8
-    t.internal_format == GL_RG8 && t.type == GL_UNSIGNED_BYTE && return UInt8
-    t.internal_format == GL_RGB8 && t.type == GL_UNSIGNED_BYTE && return UInt8
-    t.internal_format == GL_RGBA8 && t.type == GL_UNSIGNED_BYTE && return UInt8 
+    t.type == GL_FLOAT && return Float32
+    t.type == GL_UNSIGNED_BYTE && return UInt8
     return Nothing
 end
 function get_nb_values(t::TextureType)
@@ -226,10 +219,10 @@ function bind_texture_unit(tex_unit::Integer, tex::Texture)
 end
 
 # binds a texture to an image unit
-function bind_image_unit(image_unit::Integer, tex::Texture)
-    miplevel = 0
-    glBindImageTexture(image_unit, tex.pointer, miplevel, GL_FALSE, 0, GL_READ_WRITE, tex.type.internal_format) # "bind a level of a texture to an image unit"
+function bind_image_unit(image_unit::Integer, tex::Texture, shader_format=tex.type.internal_format; access=GL_READ_WRITE)
+    glBindImageTexture(image_unit, tex.pointer, 0, GL_FALSE, 0, access, shader_format) # "bind a level of a texture to an image unit"
     # First variable is image unit index, This corresponds to the "binding=<image_unit>" part in the shader
+    # Last variable gives format to present to the shader, which could be different from internal image format.
 end
 
 # returns all of the applicable (width,height,depth) 

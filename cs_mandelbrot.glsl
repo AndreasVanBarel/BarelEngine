@@ -48,7 +48,7 @@ void main() {
     // float result = (i == maxit ? 0.0 : float(i)) / (maxit-1); // color result between 0 and 1
     // vec4 value = vec4(result, result, result, 1.0);
 
-    float result = float(i) / 25;
+    float result = float(i+1) / 25;
     result = mod(log(result), 1.0); //result between 0.0 and 1.0
 
     result = p1 + (p2-p1)*result;
