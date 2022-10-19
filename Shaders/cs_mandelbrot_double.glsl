@@ -23,7 +23,7 @@ void main() {
     npos.x = double(pos.x)/(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
     npos.y = double(pos.y)/(gl_NumWorkGroups.y * gl_WorkGroupSize.y);
 
-    //normalized position between -1.0 and 1.0
+    //position in complex plane
     npos.x = (npos.x*2-1.0)*scale + center.x;
 	npos.y = (npos.y*2-1.0)*scale + center.y;
 

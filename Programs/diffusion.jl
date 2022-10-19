@@ -5,37 +5,32 @@ using GLFW
 using Shaders
 
 # texture size
-width = 2048; height = 2048; # width, height is actually more abstractly worksize_x, worksize_y
+width = 1024; height = 1024; # width, height is actually more abstractly worksize_x, worksize_y
 workgroupsize = (8,8)
+n = 64
 
 createWindow(width,height)
 
-# Allocate texture names 
-tex1 = Texture(TYPE_R8,2) 
-tex2 = Texture(TYPE_R8,2)
-show_tex = Texture(TYPE_RGBA8,2) # texture for showing on the screen
+# Allocate texture where particles deposit pheromones
+state1 = Texture(TYPE_RGB32F,2) 
+state2 = Texture(TYPE_RGB32F,2) 
+set(state1, zeros(Float32, 3, width, height)) # set state1 to zero
+set(state2, zeros(Float32, 3, width, height)) # set state2 to zero
 
-initial_values = (rand(width,height).>0.5).*UInt8(1) # random initial values 
+prog_diffusion = compile_file("Shaders/cs_diffusion.glsl")
 
-set(tex1, initial_values)
-allocate(tex2, width, height)
-allocate(show_tex, width, height)
- 
-prog = compile_file("Shaders/cs_game_of_life.glsl")
+initial_values = rand(Float32,3,width,height) # random initial values 
+set(state1, initial_values)
 
-bind_image_unit(0, tex1, GL_R8UI)
-# glBindImageTexture(0, tex1.pointer, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R8UI) # Last parameter gives format in the shader, could be different from image format.
 
-bind_image_unit(1, tex2, GL_R8UI)
-# glBindImageTexture(1, tex2.pointer, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R8UI) # "bind a level of a texture to an image unit"
-# set(prog, "out_tex", Int32(1))
-bind_image_unit(2, show_tex)
-
-execute(prog,ceil(Int,width/workgroupsize[1]), ceil(Int,height/workgroupsize[1]), 1)
-
+## Testing a single diffusion iteration
+# bind_image_unit(0, state1, GL_RGBA32F) # Last parameter gives format in the shader, could be different from image format.
+# bind_image_unit(1, state2, GL_RGBA32F)
+# execute(prog_diffusion,ceil(Int,width/workgroupsize[1]), ceil(Int,height/workgroupsize[1]), 1)
 
 ###
-sprite = Sprite(show_tex.pointer)
+sprite1 = Sprite(state1.pointer)
+sprite2 = Sprite(state2.pointer)
 
 iterating = false
 iteration = 0
@@ -70,21 +65,12 @@ function onUpdate(t_elapsed)
     end
 
     function process_key_events(event)
-        if event.key == GLFW.KEY_PERIOD && event.action == GLFW.PRESS
-            key_zoom_in = 1
-        end
-        if event.key == GLFW.KEY_PERIOD && event.action == GLFW.RELEASE
-            key_zoom_in = 0
-        end
-        if event.key == GLFW.KEY_COMMA && event.action == GLFW.PRESS
-            key_zoom_out = 1
-        end
-        if event.key == GLFW.KEY_COMMA && event.action == GLFW.RELEASE
-            key_zoom_out = 0
-        end
-        if event.key == GLFW.KEY_P && event.action == GLFW.PRESS
-            iterating = !iterating
-        end
+        if event.key == GLFW.KEY_PERIOD && event.action == GLFW.PRESS; key_zoom_in = 1; end
+        if event.key == GLFW.KEY_PERIOD && event.action == GLFW.RELEASE; key_zoom_in = 0; end
+        if event.key == GLFW.KEY_COMMA && event.action == GLFW.PRESS; key_zoom_out = 1; end
+        if event.key == GLFW.KEY_COMMA && event.action == GLFW.RELEASE; key_zoom_out = 0; end
+        if event.key == GLFW.KEY_R && event.action == GLFW.PRESS; scale = 1.0; center = [0.0, 0.0]; end
+        if event.key == GLFW.KEY_P && event.action == GLFW.PRESS; iterating = !iterating; end
         if event.key == GLFW.KEY_SLASH && event.action == GLFW.PRESS
             println("Iteration = $iteration")
             println("scale = $scale")
@@ -99,25 +85,26 @@ function onUpdate(t_elapsed)
     function set_view(center, scale)
         loc = .-center .* scale
         vertices = [Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0)].*scale .+ [Vec2d(loc[1],loc[2])]
-        shape!(sprite, vertices...)
+        shape!(sprite1, vertices...)
+        shape!(sprite2, vertices...)
     end 
     set_view(center, scale)
 
     if iterating 
-        bind_image_unit(mod(iteration,2), tex1, GL_R8UI)
-        bind_image_unit(mod(iteration+1,2), tex2, GL_R8UI)
-        execute(prog,ceil(Int,width/workgroupsize[1]), ceil(Int,height/workgroupsize[1]), 1)
+        bind_image_unit(mod(iteration,2), state1, GL_RGBA32F)
+        bind_image_unit(mod(iteration+1,2), state2, GL_RGBA32F)
+        execute(prog_diffusion,ceil(Int,width/workgroupsize[1]), ceil(Int,height/workgroupsize[1]), 1)
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT)
         iteration += 1 
     end
 
     clear(COLOR_DDGRAY)
-    draw(sprite)
+    mod(iteration,2) == 0 ? draw(sprite1) : draw(sprite2)
 end
 loop(onUpdate)
 
-free(tex1)
-free(tex2)
-free(show_tex)
-destroyWindow()
 
+##
+free(state1)
+free(state2)
+destroyWindow()

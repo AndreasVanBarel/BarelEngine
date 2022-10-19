@@ -9,14 +9,6 @@ layout (binding = 2) uniform writeonly image2D show_tex;
 void main() {
     ivec2 pos = ivec2(gl_GlobalInvocationID.xy); //conway pixel to work on
 
-    // float width = (gl_NumWorkGroups.x * gl_WorkGroupSize.x);
-    // float height = (gl_NumWorkGroups.y * gl_WorkGroupSize.y);
-
-    // if (pos.x == 1) || (pos.y == 1) || (pos.x == width) || (pos.y == height) {
-    //     set_val(pos,0.0);
-    //     return;
-    // }
-
     uint v0 = imageLoad( in_tex, pos ).r; // current value in the cell
 
     // note that out of bounds imageLoad returns 0
@@ -29,7 +21,6 @@ void main() {
     uint v7 = imageLoad( in_tex, pos + ivec2(1,0) ).r;
     uint v8 = imageLoad( in_tex, pos + ivec2(1,1) ).r;
 
-    // // uint a[8] = uint[](v1,v2,v3,v4,v5,v6,v7,v8);
     uint sum = v1+v2+v3+v4+v5+v6+v7+v8;
 
     uint result = v0; // default no state change

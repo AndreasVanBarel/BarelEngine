@@ -56,7 +56,7 @@ function save_texture(path, tex)
     if ndims(tex) == 2
         t = [ColorTypes.RGB(tex[i,j], tex[i,j], tex[i,j]) for i in axes(t,2), j in axes(t,3)] # Gray values
     end
-    t == nothing && @error("format of given texture not supported")
+    t === nothing && @error("format of given texture not supported")
     save(path, t)
 end
 

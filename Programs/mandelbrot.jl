@@ -92,18 +92,11 @@ function onUpdate(t_elapsed)
     end
 
     function process_key_events(event)
-        if event.key == GLFW.KEY_PERIOD && event.action == GLFW.PRESS
-            key_zoom_in = 1
-        end
-        if event.key == GLFW.KEY_PERIOD && event.action == GLFW.RELEASE
-            key_zoom_in = 0
-        end
-        if event.key == GLFW.KEY_COMMA && event.action == GLFW.PRESS
-            key_zoom_out = 1
-        end
-        if event.key == GLFW.KEY_COMMA && event.action == GLFW.RELEASE
-            key_zoom_out = 0
-        end
+        if event.key == GLFW.KEY_PERIOD && event.action == GLFW.PRESS; key_zoom_in = 1; end
+        if event.key == GLFW.KEY_PERIOD && event.action == GLFW.RELEASE; key_zoom_in = 0; end
+        if event.key == GLFW.KEY_COMMA && event.action == GLFW.PRESS; key_zoom_out = 1; end
+        if event.key == GLFW.KEY_COMMA && event.action == GLFW.RELEASE; key_zoom_out = 0; end
+        if event.key == GLFW.KEY_R && event.action == GLFW.PRESS; center = T.([-0.4,0.0]); scale = T(1.75); end
         if event.key == GLFW.KEY_SLASH && event.action == GLFW.PRESS
             println("Zoom scale is $scale")
             println("Iterations = $maxit")

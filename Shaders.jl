@@ -19,6 +19,9 @@ export get_julia_type, get_nb_values
 export TYPE_R32F, TYPE_RG32F, TYPE_RGB32F, TYPE_RGBA32F
 export TYPE_R8, TYPE_RG8, TYPE_RGB8, TYPE_RGBA8
 
+export gen_buffer_pointer 
+export Buffer, bind_buffer_unit
+
 export set, get, get!
 
 import Base: bind, size, ndims, get
@@ -144,9 +147,10 @@ set(loc::Integer, v1::Int32, v2::Int32, v3::Int32, v4::Int32) = glUniform4i(loc,
 
 ## GPU Data
 
+## Textures 
+
 # !Texture will not be bound to anything (not to GL_TEXTURE_2D or any other)
 function gen_texture_pointer()::UInt32
-    # Allocate texture name (textureP[1]) and bind it to GL_TEXTURE_2D
     texturePP = UInt32[0] # texturePP[1] will contain pointer to texture memory
     glGenTextures(1, texturePP) # sets texturePP[1] (generates 1 of the previously unused texture names; gets deallocated with glDeleteTextures)
     textureP = texturePP[1]
@@ -212,17 +216,17 @@ bind(tex::Texture) = glBindTexture(GL_TEXTURE(tex.D), tex.pointer)
 # Sets currently active texture unit 
 bind_texture_unit(tex_unit::Integer) = glActiveTexture(GL_TEXTURE0 + tex_unit) 
 
-# Sets currently active texture unit and binds given tex to that unit
+# Binds a texture to a texture unit (and sets currently active texture)
 function bind_texture_unit(tex_unit::Integer, tex::Texture) 
     bind_texture_unit(tex_unit)
     glBindTexture(GL_TEXTURE(tex.D), tex.pointer)
 end
 
-# binds a texture to an image unit
+# Binds a texture to an image unit
+#   First variable is image unit index, This corresponds to the "binding=<image_unit>" part in the shader
+#   Last variable gives format to present to the shader, which could be different from internal image format.
 function bind_image_unit(image_unit::Integer, tex::Texture, shader_format=tex.type.internal_format; access=GL_READ_WRITE)
     glBindImageTexture(image_unit, tex.pointer, 0, GL_FALSE, 0, access, shader_format) # "bind a level of a texture to an image unit"
-    # First variable is image unit index, This corresponds to the "binding=<image_unit>" part in the shader
-    # Last variable gives format to present to the shader, which could be different from internal image format.
 end
 
 # returns all of the applicable (width,height,depth) 
@@ -266,17 +270,90 @@ function set(tex::Texture, values::Array) #values is essentially a pointer to a 
     return
 end
 
-# Gets values to currently bound GL_TEXTURE_2D
+# Gets values in tex
 function get(tex::Texture)
     data = Array{get_julia_type(tex.type),ndims(tex)}(undef, size(tex)...)
     get!(tex::Texture, data)
     return data
 end
 
-# Copies values currently bound to GL_TEXTURE_2D in a given data structure. The user must make sure the data structure is of the correct type and size.
+# Copies values in tex to a given data structure. The user must make sure the data structure is of the correct type and size.
 function get!(tex::Texture, data)
     bind(tex)
     glGetTexImage(GL_TEXTURE(tex.D), 0, tex.type.format, tex.type.type, data) 
+    return data
+end
+
+## Buffers 
+
+# !Buffer will not be bound to anything (not to GL_SHADER_STORAGE_BUFFER or any other)
+function gen_buffer_pointer()::UInt32
+    bufferPP = UInt32[0] # bufferP[1] will contain pointer to buffer memory
+    glGenBuffers(1, bufferPP) # sets bufferP[1] (generates 1 of the previously unused buffer names; gets deallocated with glDeleteBuffers)
+    bufferP = bufferPP[1]
+    return bufferP
+end
+
+struct Buffer 
+    pointer::UInt32 # GPU pointer to this buffer
+end
+
+function Buffer()
+    buf = Buffer(gen_buffer_pointer())
+    return buf
+end
+free(buf::Buffer) = glDeleteBuffers(1,[buf.pointer]) # Deallocates and frees on the GPU
+
+# Binds GL_SHADER_STORAGE_BUFFER to buf
+bind(buf::Buffer) = glBindBuffer(GL_SHADER_STORAGE_BUFFER, buf.pointer) 
+# unbind(::Buffer) = glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+# Binds buffer to given binding point
+function bind_buffer_unit(buf_unit::Integer, buf::Buffer)
+    bind(buf)
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, buf_unit, buf.pointer) #glBindBufferRange 
+end
+
+# Allocates len bytes of memory for the buffer
+function allocate(buf::Buffer, len::Integer) 
+    bind(buf)
+    glBufferData(GL_SHADER_STORAGE_BUFFER, len, 0, GL_DYNAMIC_DRAW)
+    # unbind(buf)
+    return
+end
+
+# Sets data in given Buffer buf
+function set(buf::Buffer, data::Array) #values is essentially a pointer to a Float32 array
+    bind(buf)
+    glBufferData(GL_SHADER_STORAGE_BUFFER, length(data)*sizeof(eltype(data)), data, GL_DYNAMIC_DRAW)
+    # unbind(buf)
+    return
+end
+
+# returns the size of the buffer in bytes
+function size(buf::Buffer)
+    sizeP = UInt64[0]
+    bind(buf)
+    glGetBufferParameteri64v(GL_SHADER_STORAGE_BUFFER, GL_BUFFER_SIZE, sizeP)
+    # unbind(buf)
+    return sizeP[1]
+end
+
+# Gets data in buf cast to the given eltype (default is UInt8, i.e., byte by byte)
+function get(eltype::Type, buf::Buffer)
+    buf_size = size(buf)
+    el_size = sizeof(eltype)
+    data_size = ceil(Int, buf_size/el_size)
+    data = Array{eltype}(undef, data_size)
+    get!(buf::Buffer, data)
+    return data
+end
+get(buf::Buffer) = get(UInt8, buf::Buffer)
+
+# Copies data in buf to a given data structure. The user must make sure the data structure is of the correct type and size.
+function get!(buf::Buffer, data)
+    bind(buf)
+    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, size(buf), data)
     return data
 end
 
