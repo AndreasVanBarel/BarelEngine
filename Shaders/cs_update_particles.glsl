@@ -13,6 +13,14 @@ layout (location = 3) uniform int width;
 layout (location = 4) uniform int height;
 layout (location = 5) uniform float dt;
 
+layout (location = 6) uniform float sensor_length;
+layout (location = 7) uniform float sensor_angle; // radians
+layout (location = 8) uniform float rot_speed; // radians per second
+
+layout (location = 9) uniform float pheromone_strength;
+
+// layout (location = 9) uniform vec3 pheromone_color;
+
 // gets image pixel position from position in [0.0,1.0]x[0.0,1.0]
 ivec2 get_impos(vec2 pos) {
     int imx = int(pos.x * width);
@@ -23,7 +31,7 @@ ivec2 get_impos(vec2 pos) {
 // deposits pheromones of color pheromone_color in the world image at pixel impos 
 void deposit(ivec2 impos, vec3 pheromone_color) {
     vec3 values = imageLoad(world, impos).xyz;
-    imageStore(world, impos, vec4(min(values+pheromone_color, vec3(1.0,1.0,1.0)), 1.0));
+    imageStore(world, impos, vec4(min(values+pheromone_color*pheromone_strength, vec3(1.0,1.0,1.0)), 1.0));
 }
 
 float get_angle(vec2 v) {
@@ -34,8 +42,18 @@ vec2 get_vec(float angle) {
     return vec2(cos(angle), sin(angle));
 }
 
+float sense(vec2 pos, float angle) {
+    vec2 sense_pos = pos + get_vec(angle)*sensor_length;
+    float sense_val = imageLoad(world, get_impos(sense_pos)).r; 
+    return sense_val;
+    // float thresh = 0.01;
+    // return sense_val > thresh ? sense_val : thresh; //return sensed value if over thresh
+}
+
 // Assumptions: dt < 1, dt*vel < 1 componentwise.
 void main() {
+    const float pi = 3.1415926535897932384;
+
     uint index = gl_GlobalInvocationID.x; //particle to work on
 
     vec4 p = particles[index];
@@ -64,25 +82,17 @@ void main() {
     ivec2 impos = get_impos(pos_new);
 
     // deposit pheromones
-    vec3 pheromone_color = vec3(0.01,0.0,0.0);
-    deposit(impos, pheromone_color);
+    vec3 pheromone_color = vec3(1.0,0.0,0.0);
+    float mask = 1.0;
+    // mask = sin(pos_new.x*pi) * sin(pos_new.y*pi);
+    // mask = pow(sin(pos_new.x*pi) * sin(pos_new.y*pi), 2);
+    deposit(impos, mask*pheromone_color);
 
     // sense the world and update orientation (i.e., velocity)
-    float pixel_size = 1.0/width;
-    float pi = 3.1415926535897932384;
-    float sensor_length = pixel_size * 15; // 3 is the length in pixels
-    float sensor_angle = pi/8;
-    float rot_speed = pi; // radians per second
-
     float angle = get_angle(vel_new);
-
-    vec2 leftpos = pos_new + get_vec(angle+sensor_angle)*sensor_length;
-    vec2 forwardpos = pos_new + get_vec(angle)*sensor_length;
-    vec2 rightpos = pos_new + get_vec(angle-sensor_angle)*sensor_length;
-
-    float leftval = imageLoad(world, get_impos(leftpos)).r; // left sensor value
-    float forwardval = imageLoad(world, get_impos(forwardpos)).r; // forward sensor value
-    float rightval = imageLoad(world, get_impos(rightpos)).r; // right sensor value
+    float leftval = sense(pos_new, angle+sensor_angle); // left sensor value
+    float forwardval = sense(pos_new, angle); // forward sensor value
+    float rightval = sense(pos_new, angle-sensor_angle); // right sensor value
 
     float new_angle;
     if (forwardval > leftval && forwardval > rightval) {

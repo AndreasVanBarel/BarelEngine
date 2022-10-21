@@ -3,7 +3,7 @@ module Engine
 
 export createWindow, destroyWindow, n_to_p, p_to_n
 export vsync, wireframe
-export loop
+export loop, exitloop
 
 export Vec2d, VEC_ORIGIN, VEC_EX, VEC_EY, norm, dot, dist
 export Color, r, g, b, α
@@ -211,6 +211,7 @@ function loop(onInit::Function, onUpdate::Function, onExit::Function)
 	onExit()
 end
 loop(onUpdate::Function) = loop(()->nothing, onUpdate, ()->nothing)
+exitloop() = GLFW.SetWindowShouldClose(window, true);
 
 # V-sync
 function vsync(b::Bool)

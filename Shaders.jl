@@ -246,6 +246,7 @@ function size(tex)
     get_nb_values(tex.type) == 1 && return shape(tex)
     return (get_nb_values(tex.type), shape(tex)...) 
 end
+size(tex,i::Integer) = size(tex)[i]
 ndims(tex) = get_nb_values(tex.type) == 1 ? Int(tex.D) : Int(tex.D + 1)
 
 # Allocates memory for the texture accomodating the given shape

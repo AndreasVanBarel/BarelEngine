@@ -4,19 +4,32 @@ using ModernGL
 using GLFW
 using Shaders
 
-# texture size
-width = 1024; height = 1024; # width, height is actually more abstractly worksize_x, worksize_y
+# model parameters
+width = 1080; height = 1080; # width, height is actually more abstractly worksize_x, worksize_y
+n = 2^19 # number of particles
+
+μ = 5
+λ = 0.25
+
+pheromone_strength = 1
+sensor_length = 12 # in pixels
+sensor_angle = π/6
+speed = 0.15
+varspeed = 0.05
+rot_speed = 5π
+
+# simulation parameters
 workgroupsize = (8,8)
 particle_wgsize = 128
-n = 2^20 # number of particles
 
 createWindow(width,height)
 
 # Generate initial particle configuration 
 function gen_particle() 
-    pos = rand(Float32, 2)
+    pos = Float32.(0.0.+1.0*rand(2))
     θ = rand().*2π
-    vel = Float32[cos(θ), sin(θ)].*0.05f0 # Speed fixed, angle random
+    s = speed + varspeed*(rand()-0.5)
+    vel = Float32.([cos(θ), sin(θ)].*s) # Speed fixed, angle random
     return [pos; vel]
 end
 gen_particles(n) = hcat([gen_particle() for i = 1:n]...)
@@ -62,9 +75,13 @@ function update_particles(Δt)
     set(prog_update_particles, "dt", Float32(Δt))
     set(prog_update_particles, "width", Int32(width))
     set(prog_update_particles, "height", Int32(height))
+    set(prog_update_particles, "pheromone_strength", Float32(pheromone_strength))   
+    set(prog_update_particles, "sensor_length", Float32(sensor_length/width))
+    set(prog_update_particles, "sensor_angle", Float32(sensor_angle))
+    set(prog_update_particles, "rot_speed", Float32(rot_speed))
     execute(prog_update_particles, ceil(Int,n/particle_wgsize), 1, 1)
 end 
-update_particles(1)
+#update_particles(1)
 
 ### Update the world with time step Δt 
 function update_world(Δt)
@@ -72,13 +89,13 @@ function update_world(Δt)
     bind_image_unit(0, world, GL_RGBA32F)
     bind_image_unit(1, world_out, GL_RGBA32F)
     set(prog_update_world, "dt", Float32(Δt))
-    set(prog_update_world, "mu", Float32(10))
-    set(prog_update_world, "lambda", Float32(0.05))
+    set(prog_update_world, "mu", Float32(μ))
+    set(prog_update_world, "lambda", Float32(λ))
     execute(prog_update_world, ceil(Int,width/workgroupsize[1]), ceil(Int,height/workgroupsize[1]), 1)
     world, world_out = world_out, world
     return
 end 
-update_world(1)
+#update_world(1)
 
 ###
 world_sprite = Sprite(world.pointer)
@@ -122,6 +139,7 @@ function onUpdate(t_elapsed)
         if event.key == GLFW.KEY_COMMA && event.action == GLFW.PRESS; key_zoom_out = 1; end
         if event.key == GLFW.KEY_COMMA && event.action == GLFW.RELEASE; key_zoom_out = 0; end
         if event.key == GLFW.KEY_P && event.action == GLFW.PRESS; iterating = !iterating; end
+        if event.key == GLFW.KEY_Q && event.action == GLFW.PRESS; iterating = !iterating; exitloop(); end
         if event.key == GLFW.KEY_R && event.action == GLFW.PRESS; scale = 1.0; center = [0.0, 0.0]; end
         if event.key == GLFW.KEY_SLASH && event.action == GLFW.PRESS
             println("Iteration = $iteration")
@@ -133,6 +151,8 @@ function onUpdate(t_elapsed)
 
     (key_zoom_in>0) && (scale *= 2.0^Δtime)
     (key_zoom_out>0) && (scale *= 0.5^Δtime)
+
+    Δtime = 0.03;
 
     function set_view(center, scale)
         loc = .-center .* scale
@@ -163,3 +183,6 @@ loop(onUpdate)
 ##
 destroyWindow()
 
+##
+prog_update_particles = compile_file("Shaders/cs_update_particles.glsl")
+loop(onUpdate)
