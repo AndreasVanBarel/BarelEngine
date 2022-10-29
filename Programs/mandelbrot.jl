@@ -81,14 +81,12 @@ function onUpdate(t_elapsed)
 
     ## Handle mouse dragging input 
     if mouse(0).pressed && mouse(0).mods < 128 #first click, update the starting mouse location
-        # println("click")
         click_loc = mouse()
         click_center = center
     elseif mouse(0).pressed && mouse(0).mods >= 128 #still pressed
         mouse_loc = mouse()
         Δmouse = mouse_loc - click_loc
-        center = click_center .+ [Δmouse.y*scale, -Δmouse.x*scale]
-        # println(Δmouse)
+        center = click_center .- [Δmouse.x*scale, Δmouse.y*scale]
     end
 
     function process_key_events(event)
@@ -116,12 +114,8 @@ function onUpdate(t_elapsed)
     (key_zoom_in>0) && (scale *= T(0.5^Δtime))
     (key_zoom_out>0) && (scale *= T(2.0^Δtime))
 
-    #DEBUG (showing the input events)
-    # for i=0:7
-    #     mouse(i).pressed && println(i, mouse(i))
-    # end
-    filteredKeyEvents = filter(e->e.action!=GLFW.REPEAT, poppedKeyEvents)
-    length(filteredKeyEvents) > 0 && println(filteredKeyEvents)
+    # filteredKeyEvents = filter(e->e.action!=GLFW.REPEAT, poppedKeyEvents)
+    # length(filteredKeyEvents) > 0 && println(filteredKeyEvents)
 |
     set(prog, "center", center[1], center[2])
     set(prog, "scale", scale)

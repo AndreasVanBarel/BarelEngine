@@ -5,6 +5,8 @@ export createWindow, destroyWindow, n_to_p, p_to_n
 export vsync, wireframe
 export loop, exitloop
 
+export windowed_mode, fullscreen_mode, toggle_fullscreen
+
 export Vec2d, VEC_ORIGIN, VEC_EX, VEC_EY, norm, dot, dist
 export Color, r, g, b, α
 export COLOR_BLACK, COLOR_WHITE, COLOR_GRAY, COLOR_DGRAY, COLOR_DDGRAY
@@ -105,6 +107,7 @@ function init()
 	GLFW.WindowHint(GLFW.CONTEXT_VERSION_MAJOR, 4);
 	GLFW.WindowHint(GLFW.CONTEXT_VERSION_MINOR, 3);
 	GLFW.WindowHint(GLFW.OPENGL_PROFILE, GLFW.OPENGL_CORE_PROFILE);
+	# GLFW.WindowHint(GLFW.DECORATED, false);
 end
 # Finalizes GLFW
 function finalize()
@@ -209,6 +212,7 @@ function loop(onInit::Function, onUpdate::Function, onExit::Function)
 		popKeyEvents()
 	end
 	onExit()
+	windowed_mode()
 end
 loop(onUpdate::Function) = loop(()->nothing, onUpdate, ()->nothing)
 exitloop() = GLFW.SetWindowShouldClose(window, true);
@@ -230,6 +234,57 @@ end
 # Pixel width and height of the window
 width() = GLFW.GetWindowSize(window).width
 height() = GLFW.GetWindowSize(window).height
+
+
+#######################
+# Windowed Fullscreen #
+#######################
+global windowed_size 
+global windowed_position
+global isfullscreen = false
+
+toggle_fullscreen() = isfullscreen ? windowed_mode() : fullscreen_mode()
+
+function fullscreen_mode() 
+	global isfullscreen
+	isfullscreen && return 
+
+	# Store windowed parameters
+	global windowed_size = GLFW.GetWindowSize(window)
+	global windowed_position = GLFW.GetWindowPos(window)
+
+	# Set to fullscreen
+	monitor = GLFW.GetMonitors()[1] # Get the primary monitor
+	vm = GLFW.GetVideoMode(monitor)
+	GLFW.SetWindowAttrib(window, GLFW.DECORATED, false);
+	GLFW.SetWindowSize(window, vm.width, vm.height)
+	GLFW.SetWindowPos(window, 0, 0)
+	GLFW.SetWindowAttrib(window, GLFW.FLOATING, true);
+
+	# GLFW.SetWindowMonitor(window, monitor, 0, 0, vm.width-300, vm.height-300, vm.refreshrate)
+
+	isfullscreen = true
+end
+
+function windowed_mode() 
+	global isfullscreen
+	!isfullscreen && return 
+
+	# Set to windowed
+	# monitor = GLFW.GetMonitors()[1] # Get the primary monitor
+	# vm = GLFW.GetVideoMode(monitor)
+	# GLFW.SetWindowMonitor(window, C_NULL, 
+	# 	windowed_position.x, windowed_position.y, 
+	# 	windowed_size.width, windowed_size.height, vm.refreshrate)
+	
+	# restore windowed parameters
+	GLFW.SetWindowAttrib(window, GLFW.DECORATED, true);
+	GLFW.SetWindowSize(window, windowed_size.width, windowed_size.height)
+	GLFW.SetWindowPos(window, windowed_position.x, windowed_position.y)
+	GLFW.SetWindowAttrib(window, GLFW.FLOATING, false);
+
+	isfullscreen = false
+end
 
 ##########################
 # Low level data structs #
@@ -613,6 +668,34 @@ shape!(g::Ellipse,p::Vec2d,a1::Vec2d,a2::Vec2d) = g.vertices = [p,a1,a2]
 shape!(g::Ellipse,p::Vec2d,r::Real) = q.vertices = shape!(g,p,p+r*VEC_EX,p+r*VEC_EY)
 shape!(g::Ellipse,r::Real) = q.vertices = shape!(g,vertices[1],r)
 
+
+#==
+The vertices are in all cases mapped to uv coordinates as shown below.
+By default, the vertices are set such that screen space (x,y) corresponds to (u,v) in the natural way:
+vertices	-> (u,v)  		(x,y) (default)
+vertices[1] -> (.5,.5)  	( 0, 0)	This vertex is the center
+vertices[2] -> (0,0)  		(-1,-1)	bottom left
+vertices[3] -> (0,1)  		(-1, 1)	bottom right
+vertices[4] -> (1,0)  		( 1,-1)	top left
+vertices[5] -> (1,1)  		( 1, 1)	top right
+
+To get a standard loaded from disk image in the upright position:
+vertices	-> (u,v)  		(x,y) (for upright image)
+vertices[1] -> (.5,.5)  	( 0, 0)	This vertex is the center
+vertices[2] -> (0,0)  		(-1, 1)	top left
+vertices[3] -> (0,1)  		( 1, 1)	top right
+vertices[4] -> (1,0)  		(-1,-1)	bottom left
+vertices[5] -> (1,1)  		( 1,-1)	bottom right
+
+The default layout is summarized in the diagram below:
+(x,y) location					  (u,v)
+	4   5   		->   (1,0)               (1,1)
+	  1     		->            (.5,.5)
+	2   3   		->   (0,0)               (0,1)
+
+The center is saved instead of recalculated.
+The vertices can of course change, but their binding to the uv coordinates is constant.
+==#
 mutable struct Sprite <: Graphical
 	texture::UInt32 #Location of the texture on the GPU
 	width::UInt32
@@ -647,7 +730,9 @@ function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,tex::Array{UInt8,3},c::C
 
 	Sprite(textureP[1],width,height,isrgba,vertices,c,α)
 end
-Sprite(tex::Array{UInt8,3},c::Color=COLOR_WHITE,α::Integer=255) = Sprite(Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0), tex,c,α)
+# const default_vertices = [Vec2d(-1.0,1.0), Vec2d(1.0,1.0), Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0)]
+const default_vertices = [Vec2d(-1.0,-1.0), Vec2d(-1.0,1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0)]
+Sprite(tex::Array{UInt8,3},c::Color=COLOR_WHITE,α::Integer=255) = Sprite(default_vertices..., tex,c,α)
 
 # Construct Sprite with existing texture pointer
 function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,textureP::Integer,c::Color=COLOR_WHITE,α::Integer=255)
@@ -663,10 +748,10 @@ function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,textureP::Integer,c::Col
 	vertices = [crosspoint(p1,p2,p3,p4),p1,p2,p3,p4]
 	Sprite(textureP,width,height,isrgba,vertices,c,α)
 end
-Sprite(textureP::Integer,c::Color=COLOR_WHITE,α::Integer=255) = Sprite(Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0), textureP,c,α)
+Sprite(textureP::Integer,c::Color=COLOR_WHITE,α::Integer=255) = Sprite(default_vertices..., textureP,c,α)
 
 # Construct Sprite with existing Shaders.Texture object 
-Sprite(tex::Shaders.Texture,c::Color=COLOR_WHITE,α::Integer=255) = Sprite(Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0), tex.pointer,c,α)
+Sprite(tex::Shaders.Texture,c::Color=COLOR_WHITE,α::Integer=255) = Sprite(default_vertices..., tex.pointer,c,α)
 
 # Calculates the center of mass of the given 4 vertices
 # (previously calculated the intersection between p1--p3 and p2--p4)
@@ -690,12 +775,18 @@ function draw(s::Sprite)
 	glBindVertexArray(sprite_vao)
 	glBindBuffer(GL_ARRAY_BUFFER, sprite_vbo)
 	c,p1,p2,p3,p4 = s.vertices
+	# data = [c.x,c.y,0f0,0.5f0,0.5f0,
+	# 		p1.x,p1.y,0f0, 1f0,0f0,
+	# 		p2.x,p2.y,0f0, 1f0,1f0,
+	# 		p3.x,p3.y,0f0, 0f0,1f0,
+	# 		p4.x,p4.y,0f0, 0f0,0f0,
+	# 		p1.x,p1.y,0f0, 1f0,0f0]
 	data = [c.x,c.y,0f0,0.5f0,0.5f0,
-			p1.x,p1.y,0f0, 1f0,0f0,
-			p2.x,p2.y,0f0, 1f0,1f0,
-			p3.x,p3.y,0f0, 0f0,1f0,
-			p4.x,p4.y,0f0, 0f0,0f0,
-			p1.x,p1.y,0f0, 1f0,0f0]
+			p1.x,p1.y,0f0, 0f0,0f0,
+			p2.x,p2.y,0f0, 0f0,1f0,
+			p4.x,p4.y,0f0, 1f0,1f0,
+			p3.x,p3.y,0f0, 1f0,0f0,
+			p1.x,p1.y,0f0, 0f0,0f0]
 	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW) #copy to the GPU
 	glUseProgram(prog.sprite)
 	glUniform4f(prog.sprite_colorLoc, f(s.color.r), f(s.color.g), f(s.color.b), f(s.α))

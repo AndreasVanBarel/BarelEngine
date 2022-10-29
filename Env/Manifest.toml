@@ -62,11 +62,29 @@ git-tree-sha1 = "eb4cb44a499229b3b8426dcfb5dd85333951ff90"
 uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
 version = "0.4.2"
 
+[[CImGui]]
+deps = ["CImGui_jll", "CSyntax", "GLFW", "Libdl", "ModernGL"]
+git-tree-sha1 = "90595983c1886a1d9e0e875b2c0a75939826da07"
+uuid = "5d785b6c-b76f-510e-a07c-3070796c7e87"
+version = "1.79.1"
+
+[[CImGui_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "880a144921b99bf92b39bbf99817706391bf2448"
+uuid = "7dd61d3b-0da5-5c94-bbf9-a0296c6e3925"
+version = "1.79.0+0"
+
 [[CSTParser]]
 deps = ["Tokenize"]
 git-tree-sha1 = "60e9121d9ea044c30a04397e59b00c5d9eb826ee"
 uuid = "00ebfdb7-1f24-5e51-bd34-a7502290713f"
 version = "2.5.0"
+
+[[CSyntax]]
+deps = ["CEnum"]
+git-tree-sha1 = "50a830730a04cd9ab8468a60b93ac2ca9d34ba17"
+uuid = "ea656a56-6ca6-5dda-bba5-7b6963a5f74c"
+version = "0.4.0"
 
 [[ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
@@ -747,6 +765,12 @@ git-tree-sha1 = "a4c05337dfe6c4963253939d2acbdfa5946e8e31"
 uuid = "88034a9c-02f8-509d-84a9-84ec65e18404"
 version = "0.10.0"
 
+[[StringEncodings]]
+deps = ["Libiconv_jll"]
+git-tree-sha1 = "50ccd5ddb00d19392577902f0079267a72c5ab04"
+uuid = "69024149-9ee7-55f6-a4c4-859efe599b68"
+version = "0.3.5"
+
 [[TOML]]
 deps = ["Dates"]
 uuid = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
@@ -909,6 +933,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "79c31e7844f6ecf779705fbc12146eb190b7d845"
 uuid = "c5fb5394-a638-5e4d-96e5-b29de1b5cf10"
 version = "1.4.0+3"
+
+[[YAML]]
+deps = ["Base64", "Dates", "Printf", "StringEncodings"]
+git-tree-sha1 = "dbc7f1c0012a69486af79c8bcdb31be820670ba2"
+uuid = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
+version = "0.4.8"
 
 [[Zlib_jll]]
 deps = ["Libdl"]

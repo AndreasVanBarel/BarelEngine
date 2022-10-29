@@ -59,14 +59,12 @@ function onUpdate(t_elapsed)
 
     ## Handle mouse dragging input 
     if mouse(0).pressed && mouse(0).mods < 128 #first click, update the starting mouse location
-        # println("click")
         click_loc = mouse()
         click_center = center
     elseif mouse(0).pressed && mouse(0).mods >= 128 #still pressed
         mouse_loc = mouse()
         Δmouse = mouse_loc - click_loc
         center = click_center .- [Δmouse.x, Δmouse.y]./scale
-        # println(Δmouse)
     end
 
     function process_key_events(event)
@@ -89,7 +87,7 @@ function onUpdate(t_elapsed)
 
     function set_view(center, scale)
         loc = .-center .* scale
-        vertices = [Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0)].*scale .+ [Vec2d(loc[1],loc[2])]
+        vertices = [Vec2d(-1.0,-1.0), Vec2d(-1.0,1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0)].*scale .+ [Vec2d(loc[1],loc[2])]
         shape!(sprite, vertices...)
     end 
     set_view(center, scale)

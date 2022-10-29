@@ -4,6 +4,8 @@ using ModernGL
 using GLFW
 using Shaders
 
+# !!! THIS FILE IS OBSOLETE AND DEFUNCT !!!
+
 # texture size
 width = 1024; height = 1024; # width, height is actually more abstractly worksize_x, worksize_y
 workgroupsize = (8,8)
@@ -84,7 +86,7 @@ function onUpdate(t_elapsed)
 
     function set_view(center, scale)
         loc = .-center .* scale
-        vertices = [Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0)].*scale .+ [Vec2d(loc[1],loc[2])]
+        vertices = [Vec2d(-1.0,1.0), Vec2d(1.0,1.0), Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0)].*scale .+ [Vec2d(loc[1],loc[2])]
         shape!(sprite1, vertices...)
         shape!(sprite2, vertices...)
     end 

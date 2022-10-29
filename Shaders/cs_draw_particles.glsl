@@ -8,8 +8,8 @@ layout (std430, binding = 2) buffer ParticlesBuffer
     vec4 particles[];
 };
 
-layout (location = 3) uniform int width;
-layout (location = 4) uniform int height;
+// layout (location = 3) uniform int width;
+// layout (location = 4) uniform int height;
 
 void main() {
     vec4 color = vec4(1.0,1.0,1.0,1.0);
@@ -22,8 +22,8 @@ void main() {
     float velx = p.z;
     float vely = p.w;
 
-    int nx = int(posx * width);
-    int ny = int(posy * height);
+    int nx = int(posx);
+    int ny = int(posy);
 
     imageStore(out_tex, ivec2(nx,ny), color);
 }

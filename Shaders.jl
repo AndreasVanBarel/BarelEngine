@@ -230,7 +230,7 @@ function bind_image_unit(image_unit::Integer, tex::Texture, shader_format=tex.ty
 end
 
 # returns all of the applicable (width,height,depth) 
-function shape(tex)
+function shape(tex::Texture)
     miplevel = 0
     widthP = Int32[0]
     glGetTexLevelParameteriv(GL_TEXTURE(tex.D), miplevel, GL_TEXTURE_WIDTH, widthP);
@@ -242,12 +242,12 @@ function shape(tex)
     glGetTexLevelParameteriv(GL_TEXTURE(tex.D), miplevel, GL_TEXTURE_DEPTH, depthP);
     tex.D <= 2 && return (widthP[1], heightP[1], depthP[1])
 end 
-function size(tex)
+function size(tex::Texture)
     get_nb_values(tex.type) == 1 && return shape(tex)
     return (get_nb_values(tex.type), shape(tex)...) 
 end
-size(tex,i::Integer) = size(tex)[i]
-ndims(tex) = get_nb_values(tex.type) == 1 ? Int(tex.D) : Int(tex.D + 1)
+size(tex::Texture,i::Integer) = size(tex)[i]
+ndims(tex::Texture) = get_nb_values(tex.type) == 1 ? Int(tex.D) : Int(tex.D + 1)
 
 # Allocates memory for the texture accomodating the given shape
 function allocate(tex::Texture, shape...) 

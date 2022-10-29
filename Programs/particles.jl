@@ -5,17 +5,18 @@ using GLFW
 using Shaders
 
 # model parameters
-width = 1080; height = 1080; # width, height is actually more abstractly worksize_x, worksize_y
+width = 3840; height = 2160; # width, height is actually more abstractly worksize_x, worksize_y
 n = 2^19 # number of particles
 
 μ = 5
 λ = 0.25
 
-pheromone_strength = 1
-sensor_length = 12 # in pixels
+pheromone_strength = 1 # how much pheromone each particle adds to the world 
+pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
+sensor_length = 12 # in cells
 sensor_angle = π/6
-speed = 0.15
-varspeed = 0.05
+speed = 160 # in cells per second
+varspeed = 60 # in cells per second
 rot_speed = 5π
 
 # simulation parameters
@@ -26,7 +27,8 @@ createWindow(width,height)
 
 # Generate initial particle configuration 
 function gen_particle() 
-    pos = Float32.(0.0.+1.0*rand(2))
+    pos = Float32.(rand(2).*[width,height])
+    # pos = Float32.([width,height])
     θ = rand().*2π
     s = speed + varspeed*(rand()-0.5)
     vel = Float32.([cos(θ), sin(θ)].*s) # Speed fixed, angle random
@@ -62,8 +64,8 @@ function draw_particles(tex::Texture; clear=false)
     clear && set(tex, repeat(UInt8.([0, 0, 0, 0]), 1, s[1], s[2])) # reset tex to fully transparent
     bind_image_unit(1, tex) # texture to draw on
     bind_buffer_unit(2, buf) # particles buffer to read from
-    set(prog_draw_particles, "width", Int32(s[1]))
-    set(prog_draw_particles, "height", Int32(s[2]))
+    # set(prog_draw_particles, "width", Int32(s[1]))
+    # set(prog_draw_particles, "height", Int32(s[2]))
     execute(prog_draw_particles, ceil(Int,n/particle_wgsize), 1, 1)
 end
 draw_particles(particles_tex, clear=true)
@@ -76,7 +78,8 @@ function update_particles(Δt)
     set(prog_update_particles, "width", Int32(width))
     set(prog_update_particles, "height", Int32(height))
     set(prog_update_particles, "pheromone_strength", Float32(pheromone_strength))   
-    set(prog_update_particles, "sensor_length", Float32(sensor_length/width))
+    set(prog_update_particles, "pheromone_max", Float32(pheromone_max))   
+    set(prog_update_particles, "sensor_length", Float32(sensor_length))
     set(prog_update_particles, "sensor_angle", Float32(sensor_angle))
     set(prog_update_particles, "rot_speed", Float32(rot_speed))
     execute(prog_update_particles, ceil(Int,n/particle_wgsize), 1, 1)
@@ -140,6 +143,7 @@ function onUpdate(t_elapsed)
         if event.key == GLFW.KEY_COMMA && event.action == GLFW.RELEASE; key_zoom_out = 0; end
         if event.key == GLFW.KEY_P && event.action == GLFW.PRESS; iterating = !iterating; end
         if event.key == GLFW.KEY_Q && event.action == GLFW.PRESS; iterating = !iterating; exitloop(); end
+        if event.key == GLFW.KEY_F && event.action == GLFW.PRESS; toggle_fullscreen(); end
         if event.key == GLFW.KEY_R && event.action == GLFW.PRESS; scale = 1.0; center = [0.0, 0.0]; end
         if event.key == GLFW.KEY_SLASH && event.action == GLFW.PRESS
             println("Iteration = $iteration")
@@ -156,7 +160,7 @@ function onUpdate(t_elapsed)
 
     function set_view(center, scale)
         loc = .-center .* scale
-        vertices = [Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0), Vec2d(-1.0,1.0)].*scale .+ [Vec2d(loc[1],loc[2])]
+        vertices = [Vec2d(-1.0,-1.0), Vec2d(-1.0,1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0)].*scale .+ [Vec2d(loc[1],loc[2])]
         shape!(world_sprite, vertices...)
         shape!(particles_sprite, vertices...)
     end 
@@ -179,6 +183,7 @@ function onUpdate(t_elapsed)
     draw(particles_sprite) # drawn on top; mostly transparent
 end
 loop(onUpdate)
+
 
 ##
 destroyWindow()
