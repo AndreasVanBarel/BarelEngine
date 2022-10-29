@@ -107,7 +107,6 @@ function init()
 	GLFW.WindowHint(GLFW.CONTEXT_VERSION_MAJOR, 4);
 	GLFW.WindowHint(GLFW.CONTEXT_VERSION_MINOR, 3);
 	GLFW.WindowHint(GLFW.OPENGL_PROFILE, GLFW.OPENGL_CORE_PROFILE);
-	# GLFW.WindowHint(GLFW.DECORATED, false);
 end
 # Finalizes GLFW
 function finalize()
@@ -260,6 +259,7 @@ function fullscreen_mode()
 	GLFW.SetWindowSize(window, vm.width, vm.height)
 	GLFW.SetWindowPos(window, 0, 0)
 	GLFW.SetWindowAttrib(window, GLFW.FLOATING, true);
+	vsync(true)
 
 	# GLFW.SetWindowMonitor(window, monitor, 0, 0, vm.width-300, vm.height-300, vm.refreshrate)
 
@@ -294,10 +294,20 @@ struct Color
     r::UInt8
     g::UInt8
     b::UInt8
+	α::UInt8
 end
-Color(r::AbstractFloat,g::AbstractFloat,b::AbstractFloat) = Color(round(UInt8,255r),round(UInt8,255g),round(UInt8,255b))
-c(tex::Array{UInt8,3}) = Color.(r(tex),g(tex),b(tex))
-c(tex::Array{UInt8,3},w,h) = Color(r(tex)[w,h],g(tex)[w,h],b(tex)[w,h])
+Color(r,g,b) = Color(r,g,b,0xff)
+Color(r::AbstractFloat,g::AbstractFloat,b::AbstractFloat,α::AbstractFloat=1.0) = Color(round(UInt8,255r),round(UInt8,255g),round(UInt8,255b),round(UInt8,255α))
+
+function Color(tex::Array{UInt8,3},w=:, h=:) # size(tex,1) should be 3 or 4
+	hasα = size(tex,1) > 3
+	if hasα
+		return Color.(r(tex)[w,h],g(tex)[w,h],b(tex)[w,h],α(tex)[w,h])
+	else
+		return Color.(r(tex)[w,h],g(tex)[w,h],b(tex)[w,h])
+	end
+end
+
 const COLOR_BLACK = Color(0,0,0)
 const COLOR_WHITE = Color(255,255,255)
 const COLOR_GRAY = Color(127,127,127)
@@ -471,8 +481,8 @@ function clear(r::AbstractFloat, g::AbstractFloat, b::AbstractFloat, α::Abstrac
 	glClearColor(r, g, b, α)
 	glClear(GL_COLOR_BUFFER_BIT)
 end
-clear(c::Color,α::Real=255) = clear(c.r,c.g,c.b,α)
 clear(r::Integer,g::Integer,b::Integer,α::Integer=255) = clear(f(r),f(g),f(b),f(α))
+clear(c::Color) = clear(c.r,c.g,c.b,c.α)
 clear() = clear(0.0f0,0.0f0,0.0f0,1.0f0)
 
 ### Buffers on the GPU for the various objects
@@ -575,7 +585,6 @@ abstract type Graphical end
 free(g::Graphical) = nothing #fallback
 drawfree(g::Graphical) = (draw(g); free(g))
 color!(t::Graphical,c::Color) = t.color = c
-α!(t::Graphical,α::Real) = t.α = α
 loc(g::Graphical) = g.vertices[1]
 position!(g::Graphical,pos::Vec2d,center::Vec2d=loc(g)) = g.vertices .+= [pos-center]
 scale!(g::Graphical,factor::Real,center::Vec2d) = g.vertices .= factor.*(g.vertices.-center).+center
@@ -586,9 +595,8 @@ rot(v::Vec2d,θ::Real,center::Vec2d) = Vec2d(cos(θ)*v.x-sin(θ)*v.y, sin(θ)*v.
 mutable struct Triangle <: Graphical
 	vertices::Vector{Vec2d}
 	color::Color
-	α::UInt8
 end
-Triangle(p1::Vec2d,p2::Vec2d,p3::Vec2d,c::Color,α::Integer=255) = Triangle([p1,p2,p3],c,α)
+Triangle(p1::Vec2d,p2::Vec2d,p3::Vec2d,c::Color) = Triangle([p1,p2,p3],c)
 function draw(t::Triangle)
 	glBindVertexArray(triangle_vao)
 	glBindBuffer(GL_ARRAY_BUFFER, triangle_vbo)
@@ -598,7 +606,7 @@ function draw(t::Triangle)
 			p3.x,p3.y,Float32(0)]
 	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW) #copy to the GPU
 	glUseProgram(prog.triangle)
-	glUniform4f(prog.triangle_colorLoc, f(t.color.r), f(t.color.g), f(t.color.b), f(t.α));
+	glUniform4f(prog.triangle_colorLoc, f(t.color.r), f(t.color.g), f(t.color.b), f(t.color.α));
 	glDrawArrays(GL_TRIANGLES, 0, 3)
 end
 Base.show(t::Triangle,io::IO) = println("Triangle at $(loc(q)).")
@@ -608,16 +616,15 @@ shape!(t::Triangle,p1::Vec2d,p2::Vec2d,p3::Vec2d) = t.vertices .= [p1,p2,p3]
 mutable struct Quadrangle <: Graphical
     vertices::Vector{Vec2d}
 	color::Color
-	α::UInt8
 end
-Quadrangle(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,c::Color,α::Integer=255) = Quadrangle([p1,p2,p3,p4],c,α)
-Quadrangle(p::Vec2d,v1::Vec2d,v2::Vec2d,c,α=255) = Quadrangle(p,p+v1,p+v1+v2,p+v2,c,α)
-function Square(p::Vec2d,side,c,α=255)
+Quadrangle(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,c::Color) = Quadrangle([p1,p2,p3,p4],c)
+Quadrangle(p::Vec2d,v1::Vec2d,v2::Vec2d,c) = Quadrangle(p,p+v1,p+v1+v2,p+v2,c)
+function Square(p::Vec2d,side,c)
 	p1 = p-0.5*side*VEC_EX-0.5*side*VEC_EY
 	p2 = p+0.5*side*VEC_EX-0.5*side*VEC_EY
 	p3 = p+0.5*side*VEC_EX+0.5*side*VEC_EY
 	p4 = p-0.5*side*VEC_EX+0.5*side*VEC_EY
-	Quadrangle(p1,p2,p3,p4,c,α)
+	Quadrangle(p1,p2,p3,p4,c)
 end
 function draw(q::Quadrangle)
 	glBindVertexArray(quadrangle_vao)
@@ -629,7 +636,7 @@ function draw(q::Quadrangle)
 			p4.x,p4.y,Float32(0)]
 	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STREAM_DRAW) #copy to the GPU
 	glUseProgram(prog.triangle) #Reuses the triangle program.
-	glUniform4f(prog.triangle_colorLoc, f(q.color.r), f(q.color.g), f(q.color.b), f(q.α))
+	glUniform4f(prog.triangle_colorLoc, f(q.color.r), f(q.color.g), f(q.color.b), f(q.color.α))
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
 end
 Base.show(q::Quadrangle,io::IO) = println("Quadrangle at $(loc(q)).")
@@ -640,10 +647,9 @@ shape!(q::Quadrangle,p::Vec2d,v1::Vec2d,v2::Vec2d) = shape!(q,p,p+v1,p+v1+v2,p+v
 mutable struct Ellipse <: Graphical
     vertices::Vector{Vec2d} #Contain [centre, axis1, axis2]
 	color::Color
-	α::UInt8
 end
-Ellipse(p::Vec2d,a1::Vec2d,a2::Vec2d,c::Color,α::Integer=255) = Ellipse([p,a1,a2],c,α)
-Circle(p::Vec2d,r::Real,c,α=255) = Ellipse(p,r*VEC_EX,r*VEC_EY,c,α)
+Ellipse(p::Vec2d,a1::Vec2d,a2::Vec2d,c::Color) = Ellipse([p,a1,a2],c)
+Circle(p::Vec2d,r::Real,c) = Ellipse(p,r*VEC_EX,r*VEC_EY,c)
 function draw(g::Ellipse)
 	glBindVertexArray(ellipse_vao)
 	glBindBuffer(GL_ARRAY_BUFFER, ellipse_vbo)
@@ -658,7 +664,7 @@ function draw(g::Ellipse)
 			p4.x,p4.y,0f0, -1f0,-1f0]
 	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STREAM_DRAW) #copy to the GPU
 	glUseProgram(prog.ellipse) #Reuses the triangle program.
-	glUniform4f(prog.ellipse_colorLoc, f(g.color.r), f(g.color.g), f(g.color.b), f(g.α))
+	glUniform4f(prog.ellipse_colorLoc, f(g.color.r), f(g.color.g), f(g.color.b), f(g.color.α))
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4)
 end
 Base.show(g::Ellipse,io::IO) = println("Quadrangle at $(loc(q)).")
@@ -703,10 +709,8 @@ mutable struct Sprite <: Graphical
 	isrgba::Bool
 	vertices::Vector{Vec2d}
 	color::Color
-	α::UInt8
 end
-function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,tex::Array{UInt8,3},c::Color=COLOR_WHITE,α::Integer=255)
-	α = UInt8(α)
+function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,tex::Array{UInt8,3},c::Color=COLOR_WHITE)
 	width, height = size(tex)[2:3]
 	vertices = [crosspoint(p1,p2,p3,p4),p1,p2,p3,p4]
 	size(tex)[1]!=3 && size(tex)[1]!=4 && (@error("texture format not supported"); return nothing)
@@ -728,14 +732,14 @@ function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,tex::Array{UInt8,3},c::C
 	#glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
 	#glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, [0f0, 0f0, 0f0, 0f0])
 
-	Sprite(textureP[1],width,height,isrgba,vertices,c,α)
+	Sprite(textureP[1],width,height,isrgba,vertices,c)
 end
 # const default_vertices = [Vec2d(-1.0,1.0), Vec2d(1.0,1.0), Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0)]
 const default_vertices = [Vec2d(-1.0,-1.0), Vec2d(-1.0,1.0), Vec2d(1.0,-1.0), Vec2d(1.0,1.0)]
-Sprite(tex::Array{UInt8,3},c::Color=COLOR_WHITE,α::Integer=255) = Sprite(default_vertices..., tex,c,α)
+Sprite(tex::Array{UInt8,3},c::Color=COLOR_WHITE) = Sprite(default_vertices..., tex,c)
 
 # Construct Sprite with existing texture pointer
-function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,textureP::Integer,c::Color=COLOR_WHITE,α::Integer=255)
+function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,textureP::Integer,c::Color=COLOR_WHITE)
 	# width and height of existing texture can be found as follows:
 	glBindTexture(GL_TEXTURE_2D, textureP)
 	w = UInt[0]; h = UInt[0]; αsize = UInt[0]; 
@@ -746,12 +750,12 @@ function Sprite(p1::Vec2d,p2::Vec2d,p3::Vec2d,p4::Vec2d,textureP::Integer,c::Col
 	width = w[1]; height = h[1]; isrgba = αsize[1] > 0
 
 	vertices = [crosspoint(p1,p2,p3,p4),p1,p2,p3,p4]
-	Sprite(textureP,width,height,isrgba,vertices,c,α)
+	Sprite(textureP,width,height,isrgba,vertices,c)
 end
-Sprite(textureP::Integer,c::Color=COLOR_WHITE,α::Integer=255) = Sprite(default_vertices..., textureP,c,α)
+Sprite(textureP::Integer,c::Color=COLOR_WHITE) = Sprite(default_vertices..., textureP,c)
 
 # Construct Sprite with existing Shaders.Texture object 
-Sprite(tex::Shaders.Texture,c::Color=COLOR_WHITE,α::Integer=255) = Sprite(default_vertices..., tex.pointer,c,α)
+Sprite(tex::Shaders.Texture,c::Color=COLOR_WHITE) = Sprite(default_vertices..., tex.pointer,c)
 
 # Calculates the center of mass of the given 4 vertices
 # (previously calculated the intersection between p1--p3 and p2--p4)
@@ -763,9 +767,9 @@ function crosspoint(p1::Vec2d,p3::Vec2d,p2::Vec2d,p4::Vec2d)
 	# Vec2d(p...)
 	(p1+p2+p3+p4)/4
 end
-Sprite(p::Vec2d,v1::Vec2d,v2::Vec2d,tex,c=COLOR_WHITE,α=255) = Sprite(p,p+v1,p+v1+v2,p+v2,tex,c,α)
-Sprite(p::Vec2d,tex,c=COLOR_WHITE,α=255) = Sprite(p,VEC_EX,VEC_EY,tex,c,α)
-Sprite(tex,c=COLOR_WHITE,α=255) = Sprite(VEC_ORIGIN,tex,c,α)
+Sprite(p::Vec2d,v1::Vec2d,v2::Vec2d,tex,c=COLOR_WHITE) = Sprite(p,p+v1,p+v1+v2,p+v2,tex,c)
+Sprite(p::Vec2d,tex,c=COLOR_WHITE) = Sprite(p,VEC_EX,VEC_EY,tex,c)
+Sprite(tex,c=COLOR_WHITE) = Sprite(VEC_ORIGIN,tex,c)
 free(s::Sprite) = glDeleteTextures(1,[s.texture])
 loc(s::Sprite) = s.vertices[2]
 center(s::Sprite) = s.vertices[1]
@@ -789,7 +793,7 @@ function draw(s::Sprite)
 			p1.x,p1.y,0f0, 0f0,0f0]
 	glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW) #copy to the GPU
 	glUseProgram(prog.sprite)
-	glUniform4f(prog.sprite_colorLoc, f(s.color.r), f(s.color.g), f(s.color.b), f(s.α))
+	glUniform4f(prog.sprite_colorLoc, f(s.color.r), f(s.color.g), f(s.color.b), f(s.color.α))
 	#gpu_upload(camera)
 	glActiveTexture(GL_TEXTURE0)
 	glBindTexture(GL_TEXTURE_2D, s.texture)
