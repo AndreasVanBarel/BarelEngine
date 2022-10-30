@@ -131,7 +131,7 @@ function set(prog::UInt32, identifier::String, values...)
     (loc == -1) && @warn("identifier not found in shader (loc=$loc)")
     glUseProgram(prog)
     set(loc, values...)
-end
+end 
 set(loc::Integer, value::Float32) = glUniform1f(loc,value)
 set(loc::Integer, v1::Float32, v2::Float32) = glUniform2f(loc,v1,v2)
 set(loc::Integer, v1::Float32, v2::Float32, v3::Float32) = glUniform3f(loc,v1,v2,v3)

@@ -4,6 +4,17 @@ layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 layout (rgba32f, binding = 0) uniform image2D world; //must be the same format as in the host program
 // the above should probably become a sampler (since the texture should be sampled at non-integer values)
 
+struct ParticleProperty
+{
+    uint pheromone_color;
+    uint pheromone_attraction;
+};
+
+layout (std430, binding = 1) buffer ParticleProperties
+{
+    ParticleProperty properties[]; 
+};
+
 layout (std430, binding = 2) buffer ParticlesBuffer
 {
     vec4 particles[];
@@ -21,6 +32,21 @@ layout (location = 9) uniform float pheromone_strength;
 layout (location = 10) uniform float pheromone_max;
 
 // layout (location = 9) uniform vec3 pheromone_color;
+
+vec3 get_ph_color(ParticleProperty p) {
+    uint r = (p.pheromone_color >> 0) & 0xff;
+    uint g = (p.pheromone_color >> 8) & 0xff;
+    uint b = (p.pheromone_color >> 16) & 0xff;
+    // uint a = (p.pheromone_color >> 24) & 0xff;
+    return vec3(r,g,b)/255;
+}
+vec3 get_ph_attraction(ParticleProperty p) {
+    uint r = (p.pheromone_attraction >> 0) & 0xff;
+    uint g = (p.pheromone_attraction >> 8) & 0xff;
+    uint b = (p.pheromone_attraction >> 16) & 0xff;
+    // float a = (p.pheromone_attraction >> 24) & 0xff;
+    return vec3(r,g,b)/255-0.5; // returns attraction between -0.5 and 0.5
+}
 
 // gets world cell position from position in [0.0,1.0]x[0.0,1.0]
 ivec2 get_cell(vec2 pos) {
@@ -43,10 +69,11 @@ vec2 get_vec(float angle) {
     return vec2(cos(angle), sin(angle));
 }
 
-float sense(vec2 pos, float angle) {
+float sense(vec2 pos, float angle, vec3 attraction) {
     vec2 sense_pos = pos + get_vec(angle)*sensor_length;
-    float sense_val = imageLoad(world, get_cell(sense_pos)).r; 
-    return sense_val;
+    vec3 sense_val = imageLoad(world, get_cell(sense_pos)).rgb; 
+    float val = dot(sense_val,attraction);
+    return val;
     // float thresh = 0.01;
     // return sense_val > thresh ? sense_val : thresh; //return sensed value if over thresh
 }
@@ -83,7 +110,10 @@ void main() {
     ivec2 cell = get_cell(pos_new);
 
     // deposit pheromones
-    vec3 pheromone_color = vec3(1.0,0.0,0.0);
+    ParticleProperty pp = properties[index];
+
+    vec3 pheromone_color = get_ph_color(pp);
+    vec3 pheromone_attraction = get_ph_attraction(pp);
     float mask = 1.0;
     // mask = sin(pos_new.x*pi) * sin(pos_new.y*pi);
     // mask = pow(sin(pos_new.x*pi) * sin(pos_new.y*pi), 2);
@@ -91,9 +121,9 @@ void main() {
 
     // sense the world and update orientation (i.e., velocity)
     float angle = get_angle(vel_new);
-    float leftval = sense(pos_new, angle+sensor_angle); // left sensor value
-    float forwardval = sense(pos_new, angle); // forward sensor value
-    float rightval = sense(pos_new, angle-sensor_angle); // right sensor value
+    float leftval = sense(pos_new, angle+sensor_angle, pheromone_attraction); // left sensor value
+    float forwardval = sense(pos_new, angle, pheromone_attraction); // forward sensor value
+    float rightval = sense(pos_new, angle-sensor_angle, pheromone_attraction); // right sensor value
 
     float new_angle;
     if (forwardval > leftval && forwardval > rightval) {

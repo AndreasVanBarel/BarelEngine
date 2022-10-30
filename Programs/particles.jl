@@ -5,7 +5,7 @@ using GLFW
 using Shaders
 
 # model parameters
-width = 3840; height = 2160; # width, height is actually more abstractly worksize_x, worksize_y
+width = 1920; height = 1080; # width, height is actually more abstractly worksize_x, worksize_y
 n = 2^19 # number of particles
 
 μ = 5
@@ -13,7 +13,7 @@ n = 2^19 # number of particles
 
 pheromone_strength = 1 # how much pheromone each particle adds to the world 
 pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
-sensor_length = 12 # in cells
+sensor_length = 12*5 # in cells
 sensor_angle = π/6
 speed = 160 # in cells per second
 varspeed = 60 # in cells per second
@@ -25,23 +25,70 @@ particle_wgsize = 128
 
 createWindow(width,height)
 
-# Generate initial particle configuration 
+# New particle generatino code 
+mutable struct Particle 
+    x::Float32 
+    y::Float32 
+    vx::Float32 
+    vy::Float32 
+    color::Color # display color of particle
+    pheromone_color::Color 
+    pheromone_attraction::Color
+end
+# Generate initial particle configuration 4
 function gen_particle() 
     pos = Float32.(rand(2).*[width,height])
-    # pos = Float32.([width,height])
     θ = rand().*2π
     s = speed + varspeed*(rand()-0.5)
     vel = Float32.([cos(θ), sin(θ)].*s) # Speed fixed, angle random
-    return [pos; vel]
+    i = rand(1:3)
+    c = [COLOR_RED, COLOR_GREEN, COLOR_BLUE]
+    atr = [Color(127,255,0), Color(0,127,255), Color(255,0,127)]
+    atr = [Color(255,255,0), Color(0,255,255), Color(255,0,255)]
+    return Particle(pos..., vel..., c[i], c[i], atr[i])
 end
-gen_particles(n) = hcat([gen_particle() for i = 1:n]...)
+gen_particles(n) = [gen_particle() for i = 1:n]
 particles = gen_particles(n)
 
 # Allocate buffers for the particles with position and velocity
-# A particle is Float32[x, y, vx, vy]
-buf = Buffer()
-set(buf,particles)
-# t = get(Float32, buf)
+# A particle posvel is Float32[x, y, vx, vy]
+buf_posvel = Buffer()
+buf_color = Buffer()
+buf_behaviour = Buffer()
+function push_posvel(ps::Vector{Particle}) #pushes to GPU
+    particle_positions = hcat([[ps[i].x, ps[i].y, ps[i].vx, ps[i].vy] for i = 1:n]...)
+    set(buf_posvel,particle_positions)
+end
+function pull_posvel(ps::Vector{Particle}) #pulls from GPU
+    particle_positions = reshape(get(Float32, buf_posvel),4,n)
+    for (i,p) in enumerate(ps)
+        p.x, p.y, p.vx, p.vy = particle_positions[:,i] 
+    end
+end
+function push_color(ps::Vector{Particle}) #pushes to GPU
+    particle_colors = [ps[i].color for i = 1:n]
+    set(buf_color,particle_colors)
+end
+function pull_color(ps::Vector{Particle}) #pulls from GPU
+    particle_colors = reshape(get(UInt8, buf_color),4,n)
+    for (i,p) in enumerate(ps)
+        p.color = Color(particle_colors[:,i]...) 
+    end
+end
+function push_behaviour(ps::Vector{Particle}) #pushes to GPU
+    particle_behaviours = hcat([[ps[i].pheromone_color, ps[i].pheromone_attraction] for i = 1:n]...)
+    set(buf_behaviour,particle_behaviours)
+end
+function pull_behaviour(ps::Vector{Particle}) #pulls from GPU
+    particle_behaviours = reshape(get(UInt8, buf_behaviour),4,2,n)
+    for (i,p) in enumerate(ps)
+        p.pheromone_color = Color(particle_behaviours[:,1,i]...)
+        p.pheromone_attraction = Color(particle_behaviours[:,2,i]...)
+    end
+end
+push_posvel(particles) 
+push_color(particles)
+push_behaviour(particles)
 
 # Allocate texture where particles deposit pheromones
 world = Texture(TYPE_RGB32F,2) 
@@ -63,9 +110,10 @@ function draw_particles(tex::Texture; clear=false)
     s = shape(tex)
     clear && set(tex, repeat(UInt8.([0, 0, 0, 0]), 1, s[1], s[2])) # reset tex to fully transparent
     bind_image_unit(1, tex) # texture to draw on
-    bind_buffer_unit(2, buf) # particles buffer to read from
+    bind_buffer_unit(2, buf_posvel) # particles buffer to read from
     # set(prog_draw_particles, "width", Int32(s[1]))
     # set(prog_draw_particles, "height", Int32(s[2]))
+    bind_buffer_unit(5, buf_color)
     execute(prog_draw_particles, ceil(Int,n/particle_wgsize), 1, 1)
 end
 draw_particles(particles_tex, clear=true)
@@ -73,7 +121,8 @@ draw_particles(particles_tex, clear=true)
 ### Update the particles with time step Δt 
 function update_particles(Δt)
     bind_image_unit(0, world, GL_RGBA32F)
-    bind_buffer_unit(2, buf)
+    bind_buffer_unit(1, buf_behaviour)
+    bind_buffer_unit(2, buf_posvel)
     set(prog_update_particles, "dt", Float32(Δt))
     set(prog_update_particles, "width", Int32(width))
     set(prog_update_particles, "height", Int32(height))
@@ -123,6 +172,7 @@ function onUpdate(t_elapsed)
     ## Time etc 
     Δtime = (t_prev == -Inf ? 0 : t_elapsed - t_prev)
     t_prev = t_elapsed 
+    Δtime = 0.03;
 
     ## Handle mouse dragging input 
     if mouse(0).pressed && mouse(0).mods < 128 #first click, update the starting mouse location
@@ -142,7 +192,7 @@ function onUpdate(t_elapsed)
         if event.key == GLFW.KEY_COMMA && event.action == GLFW.PRESS; key_zoom_out = 1; end
         if event.key == GLFW.KEY_COMMA && event.action == GLFW.RELEASE; key_zoom_out = 0; end
         if event.key == GLFW.KEY_P && event.action == GLFW.PRESS; iterating = !iterating; end
-        if event.key == GLFW.KEY_Q && event.action == GLFW.PRESS; iterating = !iterating; exitloop(); end
+        if event.key == GLFW.KEY_Q && event.action == GLFW.PRESS; iterating = false; exitloop(); end
         if event.key == GLFW.KEY_F && event.action == GLFW.PRESS; toggle_fullscreen(); end
         if event.key == GLFW.KEY_R && event.action == GLFW.PRESS; scale = 1.0; center = [0.0, 0.0]; end
         if event.key == GLFW.KEY_SLASH && event.action == GLFW.PRESS
@@ -155,8 +205,6 @@ function onUpdate(t_elapsed)
 
     (key_zoom_in>0) && (scale *= 2.0^Δtime)
     (key_zoom_out>0) && (scale *= 0.5^Δtime)
-
-    Δtime = 0.03;
 
     function set_view(center, scale)
         loc = .-center .* scale
@@ -184,8 +232,6 @@ function onUpdate(t_elapsed)
 end
 loop(onUpdate)
 
-
-##
 destroyWindow()
 
 ##

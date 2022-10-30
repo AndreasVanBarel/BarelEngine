@@ -8,15 +8,29 @@ layout (std430, binding = 2) buffer ParticlesBuffer
     vec4 particles[];
 };
 
+layout (std430, binding = 5) buffer ParticleColors
+{
+    uint colors[];
+};
+
 // layout (location = 3) uniform int width;
 // layout (location = 4) uniform int height;
 
-void main() {
-    vec4 color = vec4(1.0,1.0,1.0,1.0);
+vec4 get_color(uint i) {
+    uint c = colors[i];
+    uint r = (c >> 0) & 0xff;
+    uint g = (c >> 8) & 0xff;
+    uint b = (c >> 16) & 0xff;
+    uint a = (c >> 24) & 0xff;
+    return vec4(r,g,b,a)/255;
+}
 
+void main() {
     uint index = gl_GlobalInvocationID.x; //particle to work on
 
     vec4 p = particles[index];
+    vec4 color = get_color(index);
+
     float posx = p.x;
     float posy = p.y;
     float velx = p.z;
