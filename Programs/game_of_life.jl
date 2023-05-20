@@ -5,7 +5,7 @@ using GLFW
 using Shaders
 
 # texture size
-width = 2048; height = 2048; # width, height is actually more abstractly worksize_x, worksize_y
+width = 3840; height = 2160; # width, height is actually more abstractly worksize_x, worksize_y
 workgroupsize = (8,8)
 
 createWindow(width,height)
@@ -74,6 +74,7 @@ function onUpdate(t_elapsed)
         if event.key == GLFW.KEY_COMMA && event.action == GLFW.RELEASE; key_zoom_out = 0; end
         if event.key == GLFW.KEY_R && event.action == GLFW.PRESS; scale = 1.0; center = [0.0, 0.0]; end
         if event.key == GLFW.KEY_P && event.action == GLFW.PRESS; iterating = !iterating; end
+        if event.key == GLFW.KEY_F && event.action == GLFW.PRESS; toggle_fullscreen(); end
         if event.key == GLFW.KEY_SLASH && event.action == GLFW.PRESS
             println("Iteration = $iteration")
             println("scale = $scale")
@@ -82,8 +83,8 @@ function onUpdate(t_elapsed)
     end 
     process_key_events.(poppedKeyEvents)
 
-    (key_zoom_in>0) && (scale *= T(2.0^Δtime))
-    (key_zoom_out>0) && (scale *= T(0.5^Δtime))
+    (key_zoom_in>0) && (scale *= 2.0^Δtime)
+    (key_zoom_out>0) && (scale *= 0.5^Δtime)
 
     function set_view(center, scale)
         loc = .-center .* scale

@@ -1,3 +1,12 @@
+module ParticleConfigs
+
+struct ParticleConfig 
+
+
+    
+
+end
+
 # Here follow several nice configs for particles.jl
 
 # Like in the vid kinda
@@ -115,3 +124,14 @@ sensor_angle = π/6
 speed = 0.15
 varspeed = 0.05
 rot_speed = 4.5π
+
+######
+pheromone_strength = 0.001 # how much pheromone each particle adds to the world 
+pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
+sensor_length = 12 # in cells
+sensor_angle = π/6
+speed = 160 # in cells per second
+varspeed = 60 # in cells per second
+rot_speed = 5π*2 # 5π/2 
+
+end

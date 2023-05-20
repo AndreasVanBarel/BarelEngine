@@ -11,7 +11,7 @@ double_precision = false
 
 createWindow(width,height)
 
-tex = Texture(TYPE_RGBA32F,2) # Generate texture name
+tex = Texture(TYPE_RGBA32F,2) # Generate texture name 
 allocate(tex, width, height) # Allocate memory
  
 prog = double_precision ? compile_file("Shaders/cs_mandelbrot_double.glsl") : compile_file("Shaders/cs_mandelbrot.glsl")

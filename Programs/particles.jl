@@ -6,18 +6,18 @@ using Shaders
 
 # model parameters
 width = 1920; height = 1080; # width, height is actually more abstractly worksize_x, worksize_y
-n = 2^19 # number of particles
+n = 2^20 # number of particles
 
 μ = 5
 λ = 0.25
 
-pheromone_strength = 1 # how much pheromone each particle adds to the world 
+pheromone_strength = 0.1 # how much pheromone each particle adds to the world 
 pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
-sensor_length = 12*5 # in cells
+sensor_length = 12 # in cells
 sensor_angle = π/6
 speed = 160 # in cells per second
 varspeed = 60 # in cells per second
-rot_speed = 5π
+rot_speed = 5π*2 # 5π/2 
 
 # simulation parameters
 workgroupsize = (8,8)
@@ -43,9 +43,13 @@ function gen_particle()
     vel = Float32.([cos(θ), sin(θ)].*s) # Speed fixed, angle random
     i = rand(1:3)
     c = [COLOR_RED, COLOR_GREEN, COLOR_BLUE]
-    atr = [Color(127,255,0), Color(0,127,255), Color(255,0,127)]
-    atr = [Color(255,255,0), Color(0,255,255), Color(255,0,255)]
-    return Particle(pos..., vel..., c[i], c[i], atr[i])
+    # atr = [Color(127,255,0), Color(0,127,255), Color(255,0,127)]
+    # atr = [Color(255,200,0), Color(0,255,200), Color(200,0,255)]
+    # atr = [Color(255,0,0), Color(0,255,0), Color(0,0,255)]
+    # return Particle(pos..., vel..., c[i], c[i], atr[i])
+    return Particle(pos..., vel..., COLOR_WHITE, COLOR_RED, COLOR_WHITE)
+    # return Particle(pos..., vel..., COLOR_WHITE, COLOR_RED, COLOR_WHITE)
+    
 end
 gen_particles(n) = [gen_particle() for i = 1:n]
 particles = gen_particles(n)
