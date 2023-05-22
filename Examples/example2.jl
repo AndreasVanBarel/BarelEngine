@@ -1,7 +1,5 @@
+# Draws a dragon on the screen with 4 vertices that can be repositioned using the mouse.
 using Engine
-
-# t = Triangle(Vec2d(-0.5,-0.5), Vec2d(0.5,-0.5), Vec2d(0.0,0.5), COLOR_WHITE, 1.0)
-# t2 = Triangle(Vec2d(-0.5,-0.5), Vec2d(0.5,-0.5), Vec2d(0.0,0.5), COLOR_WHITE, 1.0)
 
 destroyWindow()
 createWindow()

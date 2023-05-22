@@ -1,3 +1,5 @@
+# run init.jl first
+
 using Engine
 using GLPrograms
 using ModernGL

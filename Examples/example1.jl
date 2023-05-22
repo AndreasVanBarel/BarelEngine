@@ -1,7 +1,5 @@
+# Draws some things on the screen and allows one to draw small rectangles by clicking the mouse.
 using Engine
-
-# t = Triangle(Vec2d(-0.5,-0.5), Vec2d(0.5,-0.5), Vec2d(0.0,0.5), COLOR_WHITE, 1.0)
-# t2 = Triangle(Vec2d(-0.5,-0.5), Vec2d(0.5,-0.5), Vec2d(0.0,0.5), COLOR_WHITE, 1.0)
 
 destroyWindow()
 createWindow()
@@ -13,7 +11,7 @@ sprite = Sprite(points..., tex_dragon)
 #sprite = Sprite(VEC_ORIGIN,tex)
 bgtex = load_texture("resources/background.jpg")
 bg = Sprite(Vec2d(-1.0,1.0), Vec2d(1.0,1.0), Vec2d(-1.0,-1.0), Vec2d(1.0,-1.0), bgtex)
-squares = [Square(rand(Vec2d),0.03,rand(Color)) for i = 1:10]
+# squares = [Square(rand(Vec2d),0.03,rand(Color)) for i = 1:10]
 squares = []
 function onUpdate(t_elapsed)
     global selected
