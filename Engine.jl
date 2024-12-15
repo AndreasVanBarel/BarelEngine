@@ -12,6 +12,7 @@ export Color, r, g, b, α
 export COLOR_BLACK, COLOR_WHITE, COLOR_GRAY, COLOR_DGRAY, COLOR_DDGRAY
 export COLOR_RED, COLOR_DRED, COLOR_DDRED, COLOR_GREEN, COLOR_DGREEN, COLOR_DDGREEN, COLOR_BLUE, COLOR_DBLUE, COLOR_DDBLUE
 export COLOR_YELLOW, COLOR_DYELLOW, COLOR_DDYELLOW, COLOR_CYAN, COLOR_DCYAN, COLOR_DDCYAN, COLOR_MAGENTA, COLOR_DMAGENTA, COLOR_DDMAGENTA
+export COLOR_TRANSPARENT
 export Transform, inverse
 export Camera, use, camera
 
@@ -331,6 +332,7 @@ const COLOR_DDBLUE = Color(0,0,63)
 const COLOR_DDYELLOW = Color(63,63,0)
 const COLOR_DDCYAN = Color(0,63,63)
 const COLOR_DDMAGENTA = Color(63,0,63)
+const COLOR_TRANSPARENT = Color(0,0,0,0)
 
 f(x::Integer) = Float32(x/255)
 rand(::Type{Color},args...) = Color.(rand(UInt8,args...),rand(UInt8,args...),rand(UInt8,args...))
