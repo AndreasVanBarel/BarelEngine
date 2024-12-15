@@ -92,6 +92,7 @@ void main() {
     vec2 pos_new = pos + dt*vel;
     vec2 vel_new = vel;
 
+    // Bounce off
     if (pos_new.x < 0.0 ) {
         pos_new.x = -pos_new.x;
         vel_new.x = -vel_new.x;
@@ -107,6 +108,24 @@ void main() {
         vel_new.y = -vel_new.y;
     }
 
+    // Wrap around
+    // if (pos_new.x < 0.0 ) {
+    //     pos_new.x = pos_new.x + width;
+    // } else if (pos_new.x > width) {
+    //     pos_new.x = pos_new.x - width;
+    // }
+    // if (pos_new.y < 0.0) {
+    //     pos_new.y = pos_new.y + height;
+    // } else if (pos_new.y > height) {
+    //     pos_new.y = pos_new.y - height;
+    // }
+
+    // Teleport to center
+    // if (pos_new.x < 0.0 || pos_new.x > width || pos_new.y < 0.0 || pos_new.y > height) {
+    //     pos_new.x = width/2;
+    //     pos_new.y = height/2;
+    // }
+
     ivec2 cell = get_cell(pos_new);
 
     // deposit pheromones
@@ -115,8 +134,8 @@ void main() {
     vec3 pheromone_color = get_ph_color(pp);
     vec3 pheromone_attraction = get_ph_attraction(pp);
     float mask = 1.0;
-    // mask = sin(pos_new.x*pi) * sin(pos_new.y*pi);
-    // mask = pow(sin(pos_new.x*pi) * sin(pos_new.y*pi), 2);
+    mask = sin(pos_new.x*pi/width) * sin(pos_new.y*pi/height);
+    // mask = pow(sin(pos_new.x*pi/width) * sin(pos_new.y*pi/height), 2);
     deposit(cell, mask*pheromone_color);
 
     // sense the world and update orientation (i.e., velocity)
@@ -126,7 +145,7 @@ void main() {
     float rightval = sense(pos_new, angle-sensor_angle, pheromone_attraction); // right sensor value
 
     float new_angle;
-    if (forwardval > leftval && forwardval > rightval) {
+    if ((forwardval > leftval && forwardval > rightval) || (leftval == rightval)) {
         new_angle = angle;
     } else {
         if (leftval > rightval) {
