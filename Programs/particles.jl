@@ -4,13 +4,15 @@ using ModernGL
 using GLFW
 using Shaders
 
-# model parameters
-width = 1920*2; height = 1080*2; # width, height is actually more abstractly worksize_x, worksize_y
+# general parameters
+width = 1920*2; height = 1080*2; # note: width, height corresponds to worksize_x, worksize_y
 n = 2^20 # number of particles
 
+# World (i.e., pheromone diffusion) parameters
 μ = 5
 λ = 0.5
 
+# Particle parameters
 pheromone_strength = 1/4
 pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
 sensor_length = 60 # in pixels
@@ -20,13 +22,10 @@ varspeed = 60
 rot_speed = 2π/0.03 * 0.24
 rot_speed = 5π
 
-# simulation parameters
+# GPU computing parameters
 workgroupsize = (8,8)
 particle_wgsize = 128
 
-createWindow(width,height)
-
-# New particle generation code 
 mutable struct Particle 
     x::Float32 
     y::Float32 
@@ -36,7 +35,8 @@ mutable struct Particle
     pheromone_color::Color 
     pheromone_attraction::Color
 end
-# Generate initial particle configuration 4
+
+# Generates and returns a single particle
 function gen_particle() 
     # pos = Float32.(rand(2).*[width,height])
     # pos = pos.*0.5 .+ [width/4, height/4]
@@ -54,8 +54,10 @@ function gen_particle()
     return Particle(pos..., vel..., COLOR_TRANSPARENT, c[i], atr[i])
     # return Particle(pos..., vel..., COLOR_WHITE, COLOR_RED, COLOR_WHITE)
     # return Particle(pos..., vel..., COLOR_WHITE, COLOR_RED, COLOR_WHITE)
-    
 end
+
+#### Main code
+createWindow(width,height)
 gen_particles(n) = [gen_particle() for i = 1:n]
 particles = gen_particles(n)
 
@@ -142,7 +144,6 @@ function update_particles(Δt)
     set(prog_update_particles, "rot_speed", Float32(rot_speed))
     execute(prog_update_particles, ceil(Int,n/particle_wgsize), 1, 1)
 end 
-#update_particles(1)
 
 ### Update the world with time step Δt 
 function update_world(Δt)
@@ -156,7 +157,6 @@ function update_world(Δt)
     world, world_out = world_out, world
     return
 end 
-#update_world(1)
 
 ###
 world_sprite = Sprite(world.pointer)
@@ -243,6 +243,6 @@ loop(onUpdate)
 
 destroyWindow()
 
-##
-prog_update_particles = compile_file("Shaders/cs_update_particles.glsl")
-loop(onUpdate)
+## For quickly testing the shaders
+# prog_update_particles = compile_file("Shaders/cs_update_particles.glsl")
+# loop(onUpdate)
