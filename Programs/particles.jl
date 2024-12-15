@@ -5,8 +5,8 @@ using GLFW
 using Shaders
 
 # general parameters
-width = 1920*2; height = 1080*2; # note: width, height corresponds to worksize_x, worksize_y
-n = 2^20 # number of particles
+width = 1920; height = 1080; # note: width, height corresponds to worksize_x, worksize_y
+n = 2^19 # number of particles
 
 # World (i.e., pheromone diffusion) parameters
 μ = 5
