@@ -2,7 +2,7 @@
 module Engine
 
 export createWindow, destroyWindow, n_to_p, p_to_n
-export vsync, wireframe
+export vsync, wireframe, limit_fps
 export loop, exitloop
 
 export windowed_mode, fullscreen_mode, toggle_fullscreen
@@ -90,10 +90,12 @@ end
 # State of the module
 prog = nothing
 window = nothing
+max_fps = -1.0
 function reset()
 	global prog = nothing
 	global window = nothing
 	global camera = Camera()
+	global max_fps = -1.0
 	resetinputbuffers()
 	resetgpulocations()
 	nothing
@@ -191,11 +193,20 @@ function loop(onInit::Function, onUpdate::Function, onExit::Function)
 	# Loop until the user closes the window
 	while !GLFW.WindowShouldClose(window)
 		# FPS calculation and show in window title
+		t_prev = t_start + t_elapsed
 		t = time_ns()
-		Δt = (t-t_start-t_elapsed)
-		fps = 1e9/Δt
-		t_elapsed = t-t_start
+		t_elapsed = t - t_start # total time elapsed in ns
+		Δt = t - t_prev # time elapsed since last frame in ns
 
+		Δt_min = 1e9/max_fps # minimum time per frame in ns
+		if Δt < Δt_min 
+			sleep(1e-9*(Δt_min-Δt)) # sleep if the frame was too fast
+			t = time_ns()
+			t_elapsed = t - t_start # update total time elapsed in ns
+			Δt = t - t_prev # update time elapsed since last frame in ns
+		end
+
+		fps = 1e9/Δt
 		s_fps = fps==Inf ? "Inf" : string(round(Int,fps))
 		GLFW.SetWindowTitle(window, "Barel Engine at "*s_fps*" fps");
 
@@ -229,6 +240,11 @@ function wireframe(b::Bool)
 	isnothing(window) && (@error("No window currently active"); return)
 	b ? glPolygonMode(GL_FRONT_AND_BACK, GL_LINE) : glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 	return nothing
+end
+
+# Maximum frames per second
+function limit_fps(fps::Real)
+	global max_fps = fps
 end
 
 # Pixel width and height of the window
