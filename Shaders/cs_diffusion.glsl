@@ -14,6 +14,9 @@ const int local_size_x = 16;
 const int local_size_y = 16;
 const int local_size_z = 1;
 
+const ivec2 tile_size = ivec2(16,16); // Local tile size (without halo)
+// const ivec2 tile_size = ivec2(18,18); // Local tile size + halo
+
 // Shared memory for tile processing
 shared vec4 tile[local_size_x + 2][local_size_y + 2];
 
@@ -26,7 +29,7 @@ void main() {
     ivec2 groupID = ivec2(gl_WorkGroupID.xy);         // Work group ID
 
     // == Tile fetching ==
-    ivec2 tileOrigin = groupID * ivec2(local_size_x, local_size_y) - ivec2(1, 1); // global origin of the current workgroup
+    ivec2 tileOrigin = groupID * tile_size - ivec2(1, 1); // global origin of the current workgroup
     if (localID.x == 0 && localID.y == 0) { // Fetch the tile using only one thread in the workgroup
         for (int y = 0; y < local_size_y + 2; y++) {
             for (int x = 0; x < local_size_x + 2; x++) {
@@ -37,6 +40,27 @@ void main() {
             }
         }
     }
+
+    // // Compute the coordinates for the shared memory (with halo region)
+    // ivec2 sharedCoord = localID + ivec2(1, 1);
+
+    // // Load the current pixel and its neighbors into shared memory
+    // tile[sharedCoord.x][sharedCoord.y] = imageLoad(in_tex, globalID);
+
+    // // Load halo regions (if within bounds)
+    // if (localID.x == 0) {
+    //     tile[0][sharedCoord.y] = imageLoad(in_tex, globalID + ivec2(-1, 0));
+    // }
+    // if (localID.x == local_size_x - 1) {
+    //     tile[local_size_x + 1][sharedCoord.y] = imageLoad(in_tex, globalID + ivec2(1, 0));
+    // }
+    // if (localID.y == 0) {
+    //     tile[sharedCoord.x][0] = imageLoad(in_tex, globalID + ivec2(0, -1));
+    // }
+    // if (localID.y == local_size_y - 1) {
+    //     tile[sharedCoord.x][local_size_y + 1] = imageLoad(in_tex, globalID + ivec2(0, 1));
+    // }
+
     barrier(); // Synchronize to ensure all threads can access shared memory
 
     // == Getting current (central) texel and neighbors ==
