@@ -35,7 +35,7 @@ The following controls are available:
 
 The result, after pressing `p` to start, could look as follows:
 <p align="center">
-  <img src="https://github.com/AndreasVanBarel/BarelEngine/particles.png" width="500" title="Particle simulation example">
+  <img src="https://github.com/AndreasVanBarel/BarelEngine/blob/master/particles.png" width="500" title="Particle simulation example">
 </p>
 
 ## Example 
