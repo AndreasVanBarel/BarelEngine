@@ -1,6 +1,6 @@
 # Barel Engine
 Tools for interfacing with compute shaders for GPU computations. 
-Low level, relying solely on OpenGL (not OpenCL). This has the advantage that results rendered in real time in a window without needing to pass through the CPU again.
+Low level, relying solely on OpenGL (not OpenCL). This has the advantage that results are rendered in real time in a window without needing to pass through the CPU again.
 Originally ideated as a (toy) 2d gaming engine, since this did not exist in Julia at the time.
 
 ## Features
