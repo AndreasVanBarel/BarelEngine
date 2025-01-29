@@ -58,11 +58,13 @@ ivec2 get_cell(vec2 pos) {
 // deposits pheromones of color pheromone_color in the world image at given cell
 void deposit(ivec2 cell, vec3 pheromone_color) {
     vec3 values = imageLoad(world, cell).xyz;
-    imageStore(world, cell, vec4(min(values+pheromone_color*pheromone_strength, pheromone_max*vec3(1.0,1.0,1.0)), 1.0));
+    vec3 new_values = min(values+pheromone_color*pheromone_strength, pheromone_max*vec3(1.0,1.0,1.0));
+    imageStore(world, cell, vec4(new_values, 1.0));
 }
 
 float get_angle(vec2 v) {
-    return v.x == 0.0 ? 0.0 : atan(v.y, v.x); 
+    // return v.y == 0.0 ? 0.0 : atan(v.y, v.x); // for the special case of v.x == v.y == 0, return 0.
+    return atan(v.y, v.x); // assuming that v.x and v.y are never both 0
 }
 
 vec2 get_vec(float angle) {
