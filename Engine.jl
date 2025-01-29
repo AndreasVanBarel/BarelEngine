@@ -198,13 +198,16 @@ function loop(onInit::Function, onUpdate::Function, onExit::Function)
 		t_elapsed = t - t_start # total time elapsed in ns
 		Δt = t - t_prev # time elapsed since last frame in ns
 
-		Δt_min = 1e9/max_fps # minimum time per frame in ns
-		if Δt < Δt_min 
-			sleep(1e-9*(Δt_min-Δt)) # sleep if the frame was too fast
-			t = time_ns()
-			t_elapsed = t - t_start # update total time elapsed in ns
-			Δt = t - t_prev # update time elapsed since last frame in ns
-		end
+		# # Note: this doesn't really work yet since the sleep function is not accurate enough
+		# Δt_min = 1e9/max_fps # minimum time per frame in ns
+		# println("Δt: $Δt, Δt_min: $Δt_min")
+		# if Δt < Δt_min 
+		# 	sleep(1e-9*(Δt_min-Δt)) # sleep if the frame was too fast
+		# 	t = time_ns()
+		# 	t_elapsed = t - t_start # update total time elapsed in ns
+		# 	Δt = t - t_prev # update time elapsed since last frame in ns
+		# 	println("Slept, t_elapsed: $t_elapsed, Δt: $Δt")
+		# end
 
 		fps = 1e9/Δt
 		s_fps = fps==Inf ? "Inf" : string(round(Int,fps))
