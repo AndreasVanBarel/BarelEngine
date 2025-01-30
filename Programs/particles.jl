@@ -4,7 +4,10 @@ using ModernGL
 using GLFW
 using Shaders
 
-# general parameters
+# include("./ParticleConfigs.jl")
+# using .ParticleConfigs
+
+# general parametersP
 width = 1920*2; height = 1080*2; # note: width, height corresponds to worksize_x, worksize_y
 n = 2^20 # number of particles
 
@@ -47,12 +50,12 @@ function gen_particle()
     # atr = [Color(255,0,0), Color(0,255,0), Color(0,0,255)]
     # atr = [Color(0,255,0), Color(0,0,255), Color(255,0,0)]
     # atr = [Color(255,127,0), Color(0,255,127), Color(127,0,255)]
-    return Particle(pos..., vel..., COLOR_TRANSPARENT, c[i], atr[i])
+    return Particle(pos..., vel..., c[i], c[i], atr[i])
     # return Particle(pos..., vel..., COLOR_WHITE, COLOR_RED, COLOR_WHITE)
     # return Particle(pos..., vel..., COLOR_WHITE, COLOR_RED, COLOR_WHITE)
 end
 
-# GPU computing parameters (changing here requires changing in the shaders)
+#### GPU computing parameters (changing here requires changing in the shaders)
 # Don't change these unless you know what you are doing
 use_tiled_diffusion = false
 diffusion_wgsize = (8,8) # Update cs_diffusion.glsl

@@ -1,11 +1,41 @@
 module ParticleConfigs
 
-struct ParticleConfig 
+export ParticleConfig, default_config
 
+using Engine # for Color
 
-    
+mutable struct ParticleConfig 
+    # general parameters
+    width::Int
+    height::Int
+    n::Int # number of particles
 
+    # World (i.e., pheromone diffusion) parameters
+    μ::Float64
+    λ::Float64
+
+    # Particle parameters (general)
+    pheromone_strength::Float64
+    pheromone_max::Float64 # maximum pheromones in the world (note: 1 fully saturates the output color)
+    sensor_length::Int # in pixels
+    sensor_angle::Float64
+    speed::Float64
+    varspeed::Float64
+    rot_speed::Float64
+
+    # Particle parameters (colors)
+    colors::NTuple{3, Color} # colors for the particles
+    pheromone_colors::NTuple{3, Color} # colors for the pheromones
+    pheromone_attractions::NTuple{3, Color} # colors for the attractions
 end
+
+default_colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
+default_pheromone_colors = default_colors
+default_attractions = (Color(127,255,0), Color(0,127,255), Color(255,0,127))
+
+default_config = ParticleConfig(1920, 1080, 2^18, 5, 0.5, 1/4, 1, 60, π/6, 160, 60, 5π, default_colors, default_pheromone_colors, default_attractions)
+
+
 
 # Here follow several nice configs for particles.jl
 
