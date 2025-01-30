@@ -5,8 +5,8 @@ using GLFW
 using Shaders
 
 # general parameters
-width = 1920; height = 1080; # note: width, height corresponds to worksize_x, worksize_y
-n = 2^19 # number of particles
+width = 1920*2; height = 1080*2; # note: width, height corresponds to worksize_x, worksize_y
+n = 2^20 # number of particles
 
 # World (i.e., pheromone diffusion) parameters
 μ = 5
@@ -21,10 +21,6 @@ speed = 160
 varspeed = 60
 rot_speed = 2π/0.03 * 0.24
 rot_speed = 5π
-
-# GPU computing parameters
-workgroupsize = (8,8)
-particle_wgsize = 128
 
 mutable struct Particle 
     x::Float32 
@@ -55,6 +51,13 @@ function gen_particle()
     # return Particle(pos..., vel..., COLOR_WHITE, COLOR_RED, COLOR_WHITE)
     # return Particle(pos..., vel..., COLOR_WHITE, COLOR_RED, COLOR_WHITE)
 end
+
+# GPU computing parameters (changing here requires changing in the shaders)
+# Don't change these unless you know what you are doing
+use_tiled_diffusion = false
+diffusion_wgsize = (8,8) # Update cs_diffusion.glsl
+diffusion_tiled_wgsize = (16,16) # Update cs_diffusion_tiled.glsl
+particle_wgsize = 256 # update cs_update_particles.glsl and cs_draw_particles.glsl
 
 #### Main code
 createWindow(width,height)
@@ -113,7 +116,11 @@ set(particles_tex, repeat(UInt8.([0, 0, 0, 0]), 1, width, height))
 
 prog_draw_particles = compile_file("Shaders/cs_draw_particles.glsl") 
 prog_update_particles = compile_file("Shaders/cs_update_particles.glsl")
-prog_update_world = compile_file("Shaders/cs_diffusion.glsl")
+if use_tiled_diffusion
+    prog_update_world = compile_file("Shaders/cs_diffusion_tiled.glsl")
+else
+    prog_update_world = compile_file("Shaders/cs_diffusion.glsl")
+end
 
 ### Draw particles on tex
 # Draws particles on tex. If clear, other pixels will be set to transparent.
@@ -153,7 +160,14 @@ function update_world(Δt)
     set(prog_update_world, "dt", Float32(Δt))
     set(prog_update_world, "mu", Float32(μ))
     set(prog_update_world, "lambda", Float32(λ))
-    execute(prog_update_world, ceil(Int,width/workgroupsize[1]), ceil(Int,height/workgroupsize[1]), 1)
+
+    if use_tiled_diffusion
+        tile_size = (4,4)
+        execute(prog_update_world, ceil(Int,width/diffusion_tiled_wgsize[1]/tile_size[1]), ceil(Int,height/diffusion_tiled_wgsize[2]/tile_size[2]), 1)    
+    else
+        execute(prog_update_world, ceil(Int,width/diffusion_wgsize[1]), ceil(Int,height/diffusion_wgsize[2]), 1)
+    end
+ 
     world, world_out = world_out, world
     return
 end 
@@ -231,7 +245,7 @@ function onUpdate(t_elapsed)
         update_world(Δtime)
         world_sprite.texture = world.pointer
 
-        draw_particles(particles_tex; clear=true)
+        # draw_particles(particles_tex; clear=true)
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT) # Since world texture is being written
     end
 

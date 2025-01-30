@@ -1,6 +1,6 @@
 #version 450 core
 
-layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 layout (rgba32f, binding = 0) uniform readonly image2D in_tex; //must be the same format as in the host program
 layout (binding = 1) uniform writeonly image2D out_tex; //must be the same format as in the host program
 
@@ -8,17 +8,6 @@ layout (location = 2) uniform float mu; //diffusion coefficient, set to 0.0 for 
 layout (location = 3) uniform float lambda; //decay coefficient, set to 0.0 for no decay
 layout (location = 4) uniform float dt; //time spent
 // NOTE: dt*mu should be between 0 and 1/5
-
-// Explicitly declare workgroup size constants
-const int local_size_x = 16;
-const int local_size_y = 16;
-const int local_size_z = 1;
-
-const ivec2 tile_size = ivec2(16,16); // Local tile size (without halo)
-// const ivec2 tile_size = ivec2(18,18); // Local tile size + halo
-
-// Shared memory for tile processing
-shared vec4 tile[local_size_x + 2][local_size_y + 2];
 
 void main() {
     float decay = exp(-lambda*dt);
@@ -28,60 +17,18 @@ void main() {
     ivec2 localID = ivec2(gl_LocalInvocationID.xy);   // Local thread ID
     ivec2 groupID = ivec2(gl_WorkGroupID.xy);         // Work group ID
 
-    // == Tile fetching ==
-    ivec2 tileOrigin = groupID * tile_size - ivec2(1, 1); // global origin of the current workgroup
-    if (localID.x == 0 && localID.y == 0) { // Fetch the tile using only one thread in the workgroup
-        for (int y = 0; y < local_size_y + 2; y++) {
-            for (int x = 0; x < local_size_x + 2; x++) {
-                ivec2 fetchCoord = tileOrigin + ivec2(x, y);
-                fetchCoord = clamp(fetchCoord, ivec2(0, 0), imageSize(in_tex) - ivec2(1, 1)); // Clamp to image boundaries
-                tile[x][y] = imageLoad(in_tex, fetchCoord); // Fetch texel and store it in shared memory
-                // note that out of bounds imageLoad returns 0
-            }
-        }
-    }
-
-    // // Compute the coordinates for the shared memory (with halo region)
-    // ivec2 sharedCoord = localID + ivec2(1, 1);
-
-    // // Load the current pixel and its neighbors into shared memory
-    // tile[sharedCoord.x][sharedCoord.y] = imageLoad(in_tex, globalID);
-
-    // // Load halo regions (if within bounds)
-    // if (localID.x == 0) {
-    //     tile[0][sharedCoord.y] = imageLoad(in_tex, globalID + ivec2(-1, 0));
-    // }
-    // if (localID.x == local_size_x - 1) {
-    //     tile[local_size_x + 1][sharedCoord.y] = imageLoad(in_tex, globalID + ivec2(1, 0));
-    // }
-    // if (localID.y == 0) {
-    //     tile[sharedCoord.x][0] = imageLoad(in_tex, globalID + ivec2(0, -1));
-    // }
-    // if (localID.y == local_size_y - 1) {
-    //     tile[sharedCoord.x][local_size_y + 1] = imageLoad(in_tex, globalID + ivec2(0, 1));
-    // }
-
-    barrier(); // Synchronize to ensure all threads can access shared memory
-
     // == Getting current (central) texel and neighbors ==
     // Compute the coordinates in shared memory for this thread
     ivec2 sharedCoord = localID + ivec2(1, 1);
 
     // Fetch neighbors
-    vec4 in_vals = tile[sharedCoord.x][sharedCoord.y]; // current value in the cell
-    vec3 central = in_vals.rgb;
-    vec3 left = tile[sharedCoord.x-1][sharedCoord.y].rgb;
-    vec3 right = tile[sharedCoord.x+1][sharedCoord.y].rgb;
-    vec3 up = tile[sharedCoord.x][sharedCoord.y+1].rgb;
-    vec3 down = tile[sharedCoord.x][sharedCoord.y-1].rgb;
-
-    // vec4 in_vals = imageLoad(in_tex, globalID);
-    // vec3 central = in_vals.rgb; // current value in the cell
-    // vec3 left = imageLoad(in_tex, globalID + ivec2(-1,0)).rgb;
-    // vec3 right = imageLoad(in_tex, globalID + ivec2(1,0)).rgb;
-    // vec3 up = imageLoad(in_tex, globalID + ivec2(0,1)).rgb;
-    // vec3 down = imageLoad(in_tex, globalID + ivec2(0,-1)).rgb;
-    // // note that out of bounds imageLoad returns 0
+    vec4 in_vals = imageLoad(in_tex, globalID);
+    vec3 central = in_vals.rgb; // current value in the cell
+    vec3 left = imageLoad(in_tex, globalID + ivec2(-1,0)).rgb;
+    vec3 right = imageLoad(in_tex, globalID + ivec2(1,0)).rgb;
+    vec3 up = imageLoad(in_tex, globalID + ivec2(0,1)).rgb;
+    vec3 down = imageLoad(in_tex, globalID + ivec2(0,-1)).rgb;
+    // note that out of bounds imageLoad returns 0
 
     // == Diffusion ==
     vec3 sum = left+right+up+down;
