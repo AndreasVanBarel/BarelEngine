@@ -128,7 +128,7 @@ end
 ## Utility functions for quickly setting integer and float uniforms
 function set(prog::UInt32, identifier::String, values...)
     loc = glGetUniformLocation(prog, identifier)
-    (loc == -1) && @warn("identifier not found in shader (loc=$loc)")
+    (loc == -1) && error("identifier not found in shader (loc=$loc)")
     glUseProgram(prog)
     set(loc, values...)
 end 
