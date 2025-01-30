@@ -1,8 +1,8 @@
 #version 430 core
 
-layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 layout (rgba32f, binding = 0) uniform image2D world; //must be the same format as in the host program
-// the above should probably become a sampler (since the texture should be sampled at non-integer values)
+// the above should probably become a sampler (since the texture should be sampled at non-integer values and out of bounds as well)
 
 struct ParticleProperty
 {
@@ -63,7 +63,8 @@ void deposit(ivec2 cell, vec3 pheromone_color) {
 }
 
 float get_angle(vec2 v) {
-    // return v.y == 0.0 ? 0.0 : atan(v.y, v.x); // for the special case of v.x == v.y == 0, return 0.
+    // return (v.x == 0.0 && v.y == 0.0) ? 0.0 : atan(v.y, v.x); // for the special case of v.x == v.y == 0, return 0.
+    // Note that the web documentation of atan states that atan(y,0) is undefined! This is believed to be an error, with all implementations returning pi/2 or -pi/2.
     return atan(v.y, v.x); // assuming that v.x and v.y are never both 0
 }
 
@@ -71,13 +72,12 @@ vec2 get_vec(float angle) {
     return vec2(cos(angle), sin(angle));
 }
 
+// Note that should the sensor fall outside the image, the value returned depends on the behaviour of imageLoad, which is technically undefined, but in practice returns 0. 
 float sense(vec2 pos, float angle, vec3 attraction) {
     vec2 sense_pos = pos + get_vec(angle)*sensor_length;
     vec3 sense_val = imageLoad(world, get_cell(sense_pos)).rgb; 
     float val = dot(sense_val,attraction);
     return val;
-    // float thresh = 0.01;
-    // return sense_val > thresh ? sense_val : thresh; //return sensed value if over thresh
 }
 
 // Assumptions: dt < 1, dt*vel < 1 componentwise.

@@ -1,6 +1,6 @@
 #version 430 core
 
-layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 layout (binding = 1) uniform writeonly image2D out_tex; //must be the same format as in the host program
 
 layout (std430, binding = 2) buffer ParticlesBuffer
