@@ -7,6 +7,8 @@ export loop, exitloop
 
 export windowed_mode, fullscreen_mode, toggle_fullscreen
 
+export get_opengl_info
+
 export Vec2d, VEC_ORIGIN, VEC_EX, VEC_EY, norm, dot, dist
 export Color, r, g, b, α
 export COLOR_BLACK, COLOR_WHITE, COLOR_GRAY, COLOR_DGRAY, COLOR_DDGRAY
@@ -258,6 +260,7 @@ height() = GLFW.GetWindowSize(window).height
 #######################
 # Windowed Fullscreen #
 #######################
+
 global windowed_size 
 global windowed_position
 global isfullscreen = false
@@ -305,6 +308,23 @@ function windowed_mode()
 
 	isfullscreen = false
 end
+
+
+###############
+# Diagnostics #
+###############
+
+function get_opengl_info()
+	version = unsafe_string(glGetString(GL_VERSION))
+	shading_language_version = unsafe_string(glGetString(GL_SHADING_LANGUAGE_VERSION))
+	vendor = unsafe_string(glGetString(GL_VENDOR))
+	renderer = unsafe_string(glGetString(GL_RENDERER))
+	return "OpenGL version: $version\n" *
+		   "GLSL version: $shading_language_version\n" *
+		   "Vendor: $vendor\n" *
+		   "Renderer: $renderer"
+end
+
 
 ##########################
 # Low level data structs #
