@@ -7,23 +7,33 @@ using Shaders
 # include("./ParticleConfigs.jl")
 # using .ParticleConfigs
 
-# general parametersP
-width = 1920*2; height = 1080*2; # note: width, height corresponds to worksize_x, worksize_y
-n = 2^20 # number of particles
+# [2] Monochrome
+width = 1920; height = 1080; 
+n = 2^19 # number of particles
 
-# World (i.e., pheromone diffusion) parameters
-μ = 5
-λ = 0.5
+μ = 5*2
+λ = 0.5/2
 
-# Particle parameters
-pheromone_strength = 1/4
-pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
-sensor_length = 60 # in pixels
-sensor_angle = 1π/6
-speed = 160
-varspeed = 60
-rot_speed = 2π/0.03 * 0.24
-rot_speed = 5π
+r = 1
+pheromone_strength = 1
+pheromone_max = 1
+sensor_length = 11r # in pixels
+sensor_angle = π/8
+speed = 0.15*1080
+varspeed = 0.05*1080
+rot_speed = 5π/r
+
+colors = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+pheromones = (COLOR_RED, COLOR_RED, COLOR_RED)
+attractions = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+drawn_particles = true
+starting_distribution = "center"
+
+# attractions = (Color(255,200,0), Color(0,255,200), Color(200,0,255))
+# attractions = (Color(255,0,0), Color(0,255,0), Color(0,0,255))
+# attractions = (Color(0,255,0), Color(0,0,255), Color(255,0,0))
+# attractions = (Color(255,127,0), Color(0,255,127), Color(127,0,255))
+# starting_distribution = "random"
 
 mutable struct Particle 
     x::Float32 
@@ -37,22 +47,19 @@ end
 
 # Generates and returns a single particle
 function gen_particle() 
-    # pos = Float32.(rand(2).*[width,height])
-    # pos = pos.*0.5 .+ [width/4, height/4]
-    pos = Float32.([width/2, height/2])
+    if starting_distribution == "center"
+        pos = Float32.([width/2, height/2])
+    elseif starting_distribution == "random"
+        pos = Float32.(rand(2).*[width,height])
+        # pos = pos.*0.5 .+ [width/4, height/4]
+    else 
+        error("Invalid starting distribution")
+    end
     θ = rand().*2π
     s = speed + varspeed*(rand()-0.5)
     vel = Float32.([cos(θ), sin(θ)].*s) # Speed fixed, angle random
     i = rand(1:3)
-    c = [COLOR_RED, COLOR_GREEN, COLOR_BLUE]
-    atr = [Color(127,255,0), Color(0,127,255), Color(255,0,127)]
-    # atr = [Color(255,200,0), Color(0,255,200), Color(200,0,255)]
-    # atr = [Color(255,0,0), Color(0,255,0), Color(0,0,255)]
-    # atr = [Color(0,255,0), Color(0,0,255), Color(255,0,0)]
-    # atr = [Color(255,127,0), Color(0,255,127), Color(127,0,255)]
-    return Particle(pos..., vel..., c[i], c[i], atr[i])
-    # return Particle(pos..., vel..., COLOR_WHITE, COLOR_RED, COLOR_WHITE)
-    # return Particle(pos..., vel..., COLOR_WHITE, COLOR_RED, COLOR_WHITE)
+    return Particle(pos..., vel..., colors[i], pheromones[i], attractions[i])
 end
 
 #### GPU computing parameters (changing here requires changing in the shaders)
@@ -64,6 +71,7 @@ particle_wgsize = 256 # update cs_update_particles.glsl and cs_draw_particles.gl
 
 #### Main code
 createWindow(width,height)
+println(get_opengl_info())
 gen_particles(n) = [gen_particle() for i = 1:n]
 particles = gen_particles(n)
 
@@ -175,10 +183,22 @@ function update_world(Δt)
     return
 end 
 
-###
+### Define iteration procedure
 world_sprite = Sprite(world.pointer)
 particles_sprite = Sprite(particles_tex.pointer)
+function iterate(Δt)
+    update_particles(Δt)
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT) # Since world texture is being written
 
+    drawn_particles && draw_particles(particles_tex; clear=true)
+
+    update_world(Δt)
+    world_sprite.texture = world.pointer
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT) # Since world texture is being written
+end
+
+### onUpdate function with window controls
 iterating = false
 iteration = 0
 t_prev = -Inf
@@ -196,9 +216,9 @@ function onUpdate(t_elapsed)
     global t_prev, iterating, iteration, scale, center, click_center, click_loc, key_zoom_in, key_zoom_out
 
     ## Time etc 
-    Δtime = (t_prev == -Inf ? 0 : t_elapsed - t_prev)
+    Δt = (t_prev == -Inf ? 0 : t_elapsed - t_prev)
     t_prev = t_elapsed 
-    Δtime = 0.03;
+    Δt = 0.03;
 
     ## Handle mouse dragging input 
     if mouse(0).pressed && mouse(0).mods < 128 #first click, update the starting mouse location
@@ -229,8 +249,8 @@ function onUpdate(t_elapsed)
     end 
     process_key_events.(poppedKeyEvents)
 
-    (key_zoom_in>0) && (scale *= 2.0^Δtime)
-    (key_zoom_out>0) && (scale *= 0.5^Δtime)
+    (key_zoom_in>0) && (scale *= 2.0^Δt)
+    (key_zoom_out>0) && (scale *= 0.5^Δt)
 
     function set_view(center, scale)
         loc = .-center .* scale
@@ -241,25 +261,17 @@ function onUpdate(t_elapsed)
     set_view(center, scale)
 
     if iterating 
-        update_particles(Δtime)
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
-        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT) # Since world texture is being written
-
-        update_world(Δtime)
-        world_sprite.texture = world.pointer
-
-        # draw_particles(particles_tex; clear=true)
-        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT) # Since world texture is being written
+        iterate(Δt)
     end
 
     clear(COLOR_BLACK)
     draw(world_sprite)
-    draw(particles_sprite) # drawn on top; mostly transparent
+    drawn_particles && draw(particles_sprite) # drawn on top; mostly transparent
 end
 loop(onUpdate)
 
 destroyWindow()
 
-## For quickly testing the shaders
+## Snippet for quickly testing the shaders
 # prog_update_particles = compile_file("Shaders/cs_update_particles.glsl")
 # loop(onUpdate)
