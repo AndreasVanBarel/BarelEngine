@@ -9,31 +9,35 @@ using Shaders
 # include("./ParticleConfigs.jl")
 # using .ParticleConfigs
 
-# [2] Monochrome
-width = 1920; height = 1080; 
-n = 2^19 # number of particles
+###### Configurations ######
+# [6] Soapy
+# general parameters
+width = 1920*2; height = 1080*2; 
+n = 2^20 # number of particles
 
-μ = 5*2
-λ = 0.5/2
+# World (i.e., pheromone diffusion) parameters
+μ = 10
+λ = 0.25
 
-r = 1
+# Particle parameters
 pheromone_strength = 1
-pheromone_max = 1
-sensor_length = 11r # in pixels
+pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
+sensor_length = 20 # in pixels
 sensor_angle = π/8
-speed = 0.15*1080
-varspeed = 0.05*1080
-rot_speed = 5π/r
+speed = 160
+varspeed = 60
+rot_speed = 2π
 
-colors = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
-pheromones = (COLOR_RED, COLOR_RED, COLOR_RED)
-attractions = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+# Particle parameters (colors)
+colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
+pheromones = colors
+attractions = (Color(127,255,0), Color(0,127,255), Color(255,0,127))
 drawn_particles = true
-starting_distribution = "center"
+starting_distribution = "random"
 
 # attractions = (Color(255,200,0), Color(0,255,200), Color(200,0,255))
 # attractions = (Color(255,0,0), Color(0,255,0), Color(0,0,255))
-# attractions = (Color(0,255,0), Color(0,0,255), Color(255,0,0))
+attractions = (Color(0,255,0), Color(0,0,255), Color(255,0,0))
 # attractions = (Color(255,127,0), Color(0,255,127), Color(127,0,255))
 # starting_distribution = "random"
 
@@ -220,6 +224,7 @@ key_zoom_out = 0 # 1 for pressed -> zooming out
 
 function onUpdate(t_elapsed)
     global t_prev, iterating, iteration, scale, center, click_center, click_loc, key_zoom_in, key_zoom_out
+    global sensor_length
 
     ## Time etc 
     Δt = (t_prev == -Inf ? 0 : t_elapsed - t_prev)
@@ -251,6 +256,15 @@ function onUpdate(t_elapsed)
             println("Iteration = $iteration")
             println("scale = $scale")
             println("location = $center")
+            println("sensor_length = $sensor_length")
+        end
+        if event.key == GLFW.KEY_EQUAL && event.action == GLFW.PRESS
+            sensor_length += 1
+            set(prog_update_particles, "sensor_length", Float32(sensor_length))
+        end
+        if event.key == GLFW.KEY_MINUS && event.action == GLFW.PRESS
+            sensor_length -= 1
+            set(prog_update_particles, "sensor_length", Float32(sensor_length))
         end
     end 
     process_key_events.(poppedKeyEvents)
