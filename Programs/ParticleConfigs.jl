@@ -202,7 +202,7 @@ drawn_particles = true
 starting_distribution = "random"
 
 
-# [5.1] Monoschromatic Spaghetti
+# [5.1] Monochromatic Spaghetti alternative
 # model parameters
 width = 1920*2; height = 1080*2; 
 n = 2^21 # number of particles
@@ -221,6 +221,29 @@ rot_speed = 1.5π
 colors = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
 pheromones = (COLOR_RED, COLOR_RED, COLOR_RED)
 attractions = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+drawn_particles = true
+starting_distribution = "random"
+
+
+# [5.2] Colorful spaghetti
+width = 1920; height = 1080; 
+n = 2^20 # number of particles
+
+μ = 5
+λ = 0.5
+
+pheromone_strength = 1/20
+pheromone_max = 1
+sensor_length = 25 # in pixels
+sensor_angle = π/8
+speed = 0.15*1080
+varspeed = 0.20*1080
+rot_speed = 1π
+
+colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
+pheromones = default_colors
+attractions = (Color(127,255,0), Color(0,127,255), Color(255,0,127))
+
 drawn_particles = true
 starting_distribution = "random"
 

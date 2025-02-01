@@ -144,6 +144,7 @@ void main() {
     float angle = get_angle(vel_new);
     float leftval = sense(pos_new, angle+sensor_angle, pheromone_attraction); // left sensor value
     float forwardval = sense(pos_new, angle, pheromone_attraction); // forward sensor value
+    // leftval = -1e6; // ignore left sensor
     float rightval = sense(pos_new, angle-sensor_angle, pheromone_attraction); // right sensor value
 
     float new_angle;

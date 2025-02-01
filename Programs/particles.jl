@@ -28,7 +28,6 @@ speed = 160
 varspeed = 60
 rot_speed = 2π
 
-# Particle parameters (colors)
 colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
 pheromones = colors
 attractions = (Color(127,255,0), Color(0,127,255), Color(255,0,127))
@@ -37,8 +36,9 @@ starting_distribution = "random"
 
 # attractions = (Color(255,200,0), Color(0,255,200), Color(200,0,255))
 # attractions = (Color(255,0,0), Color(0,255,0), Color(0,0,255))
-attractions = (Color(0,255,0), Color(0,0,255), Color(255,0,0))
+# attractions = (Color(0,255,0), Color(0,0,255), Color(255,0,0))
 # attractions = (Color(255,127,0), Color(0,255,127), Color(127,0,255))
+# attractions = (Color(127,255,0), Color(0,127,255), Color(255,0,127))
 # starting_distribution = "random"
 
 
@@ -80,6 +80,7 @@ end
 
 #### Main code
 createWindow(width,height)
+vsync(false)
 println(get_opengl_info())
 gen_particles(n) = [gen_particle() for i = 1:n]
 particles = gen_particles(n)
