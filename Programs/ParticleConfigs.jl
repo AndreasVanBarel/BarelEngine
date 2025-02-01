@@ -25,66 +25,93 @@ mutable struct ParticleConfig
 
     # Particle parameters (colors)
     colors::NTuple{3, Color} # colors for the particles
-    pheromone_colors::NTuple{3, Color} # colors for the pheromones
-    pheromone_attractions::NTuple{3, Color} # colors for the attractions
+    pheromones::NTuple{3, Color} # colors for the pheromones
+    attractions::NTuple{3, Color} # colors for the attractions
+    draw_particles::Bool
 end
 
 default_colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
-default_pheromone_colors = default_colors
+default_pheromones = default_colors
 default_attractions = (Color(127,255,0), Color(0,127,255), Color(255,0,127))
 
-default_config = ParticleConfig(1920, 1080, 2^18, 5, 0.5, 1/4, 1, 60, π/6, 160, 60, 5π, default_colors, default_pheromone_colors, default_attractions)
+default_config = ParticleConfig(1920, 1080, 2^18, 5, 0.5, 1/4, 1, 60, π/6, 160, 60, 5π, default_colors, default_pheromones, default_attractions, false)
 
 
+###### Configurations ######
+# [1] Default Configuration 
+# general parameters
+width = 1920; height = 1080; 
+n = 2^18 # number of particles
 
-# Here follow several nice configs for particles.jl
-
-# Like in the vid kinda
-width = 1080; height = 1080; # width, height is actually more abstractly worksize_x, worksize_y
-n = 2^19 # number of particles
-
+# World (i.e., pheromone diffusion) parameters
 μ = 5
 λ = 0.5
 
-r = 1
-pheromone_strength = 1
-sensor_length = 11r # in pixels
-sensor_angle = π/8
-speed = 0.15
-varspeed = 0.05
-rot_speed = 5π/r
-
-## Like in the vid kinda
-width = 1440; height = 1440; # width, height is actually more abstractly worksize_x, worksize_y
-n = 2^20 # number of particles
-
-μ = 5
-λ = 0.5
-
-pheromone_strength = 0.2 # up to 1.0
-sensor_length = 16 # in pixels
-sensor_angle = π/8
-speed = 0.15
-varspeed = 0.05
+# Particle parameters
+pheromone_strength = 1/4
+pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
+sensor_length = 60 # in pixels
+sensor_angle = π/6
+speed = 160
+varspeed = 60
 rot_speed = 5π
 
-## Like in the vid kinda
-width = 1080; height = 1080; # width, height is actually more abstractly worksize_x, worksize_y
+# Particle parameters (colors)
+colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
+pheromones = colors
+attractions = (Color(127,255,0), Color(0,127,255), Color(255,0,127))
+drawn_particles = false
+starting_distribution = "center"
+
+
+# [2] Monochrome
+width = 1080; height = 1080; 
 n = 2^19 # number of particles
 
 μ = 5
-λ = 0.1
+λ = 0.5
 
 r = 1
 pheromone_strength = 1
+pheromone_max = 1
 sensor_length = 11r # in pixels
 sensor_angle = π/8
-speed = 0.15
-varspeed = 0.05
+speed = 0.15*width
+varspeed = 0.05*width
 rot_speed = 5π/r
 
-##
-width = 1080; height = 1080; # width, height is actually more abstractly worksize_x, worksize_y
+colors = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+pheromones = (COLOR_RED, COLOR_RED, COLOR_RED)
+attractions = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+drawn_particles = true
+starting_distribution = "random"
+
+
+# [2.1] Monochrome alternative
+width = 1920; height = 1080; 
+n = 2^19 # number of particles
+
+μ = 5*2
+λ = 0.5/2
+
+r = 1
+pheromone_strength = 1
+pheromone_max = 1
+sensor_length = 11r # in pixels
+sensor_angle = π/8
+speed = 0.15*1080
+varspeed = 0.05*1080
+rot_speed = 5π/r
+
+colors = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+pheromones = (COLOR_RED, COLOR_RED, COLOR_RED)
+attractions = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+drawn_particles = true
+starting_distribution = "random"
+
+
+# [3] Monochrome (high pheromone strength)
+width = 1080; height = 1080; 
 n = 2^19 # number of particles
 
 μ = 5
@@ -92,93 +119,158 @@ n = 2^19 # number of particles
 
 r = 1
 pheromone_strength = 1
+pheromone_max = 1
 sensor_length = 11r # in pixels
-sensor_angle = π/6
-speed = 0.15
-varspeed = 0.05
+sensor_angle = π/8
+speed = 0.15*width
+varspeed = 0.05*width
 rot_speed = 5π/r
 
-## uneventful then suddenly interesting
-width = 1080; height = 1080; # width, height is actually more abstractly worksize_x, worksize_y
+colors = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+pheromones = (COLOR_RED, COLOR_RED, COLOR_RED)
+attractions = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+drawn_particles = true
+starting_distribution = "random"
+
+
+# [3] Cyclical
+width = 1920; height = 1080; 
+n = 2^19 # number of particles
+
+μ = 5*2
+λ = 0.5*2
+
+r = 1
+pheromone_strength = 1/10
+pheromone_max = 1
+sensor_length = 22r # in pixels
+sensor_angle = π/8
+speed = 0.15*1080
+varspeed = 0.20*1080
+rot_speed = 5π/r
+
+colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
+pheromones = default_colors
+attractions = (Color(255,0,0), Color(0,255,0), Color(0,0,255))
+
+drawn_particles = true
+starting_distribution = "random"
+
+
+# [4] Monochrome; uneventful then suddenly interesting
+width = 1080; height = 1080; 
 n = 2^19 # number of particles
 
 μ = 5
 λ = 0.25
 
 pheromone_strength = 1
+pheromone_max = 1
 sensor_length = 12 # in pixels
 sensor_angle = π/6
 speed = 162
 varspeed = 54
 rot_speed = 5π
 
-## Spaghetti
+colors = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+pheromones = (COLOR_RED, COLOR_RED, COLOR_RED)
+attractions = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+drawn_particles = true
+starting_distribution = "random"
+
+
+# [5] Monoschromatic Spaghetti
 # model parameters
-width = 1080; height = 1080; # width, height is actually more abstractly worksize_x, worksize_y
+width = 1080; height = 1080; 
 n = 2^19 # number of particles
 
 μ = 5
 λ = 0.5
 
-pheromone_strength = 0.02
+pheromone_strength = 0.1
+pheromone_max = 1
 sensor_length = 10 # in pixels
-sensor_angle = π/4
-speed = 0.15
-varspeed = 0.05
-rot_speed = 1.5π
-
-# model parameters (better than previous)
-width = 1080; height = 1080; # width, height is actually more abstractly worksize_x, worksize_y
-n = 2^19 # number of particles
-
-μ = 5
-λ = 0.25
-
-pheromone_strength = 0.02
-sensor_length = 10 # in pixels
-sensor_angle = π/4
-speed = 0.15
-varspeed = 0.05
-rot_speed = 1.5π
-
-## long term behaviour based on stable small circular patterns
-width = 1080; height = 1080; # width, height is actually more abstractly worksize_x, worksize_y
-n = 2^19 # number of particles
-
-μ = 5
-λ = 0.25
-
-pheromone_strength = 1
-sensor_length = 11 # in pixels
 sensor_angle = π/6
-speed = 0.15
-varspeed = 0.05
-rot_speed = 4.5π
+speed = 0.15*width
+varspeed = 0.05*width
+rot_speed = 1.5π
 
-######
-pheromone_strength = 0.001 # how much pheromone each particle adds to the world 
+colors = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+pheromones = (COLOR_RED, COLOR_RED, COLOR_RED)
+attractions = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+drawn_particles = true
+starting_distribution = "random"
+
+
+# [5.1] Monoschromatic Spaghetti
+# model parameters
+width = 1920*2; height = 1080*2; 
+n = 2^21 # number of particles
+
+μ = 5
+λ = 0.5
+
+pheromone_strength = 0.1
+pheromone_max = 1
+sensor_length = 20 # in pixels
+sensor_angle = π/6
+speed = 300
+varspeed = 100
+rot_speed = 1.5π
+
+colors = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+pheromones = (COLOR_RED, COLOR_RED, COLOR_RED)
+attractions = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
+drawn_particles = true
+starting_distribution = "random"
+
+
+# [6] Soapy
+# general parameters
+width = 1920; height = 1080; 
+n = 2^18 # number of particles
+
+# World (i.e., pheromone diffusion) parameters
+μ = 5
+λ = 0.5/5
+
+# Particle parameters
+pheromone_strength = 1/4
 pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
-sensor_length = 12 # in cells
-sensor_angle = π/6
-speed = 160 # in cells per second
-varspeed = 60 # in cells per second
-rot_speed = 5π*2 # 5π/2 
+sensor_length = 16 # in pixels
+sensor_angle = π/8
+speed = 160
+varspeed = 60
+rot_speed = 5π
 
-######
+# Particle parameters (colors)
+colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
+pheromones = colors
+attractions = (Color(127,255,0), Color(0,127,255), Color(255,0,127))
+drawn_particles = true
+starting_distribution = "random"
 
-# width = 1920; height = 1080; # width, height is actually more abstractly worksize_x, worksize_y
-# n = 2^20 # number of particles
 
-# μ = 5
-# λ = 0.1
+# [7] Weird disco
+width = 1920; height = 1080; 
+n = 2^20 # number of particles
 
-# r = 1
-# pheromone_strength = 0.1
-# sensor_length = 16r # in pixels
-# sensor_angle = π/8
-# speed = 160
-# varspeed = 50
-# rot_speed = 5π/r
+μ = 5
+λ = 0.5
 
+pheromone_strength = 1/5
+pheromone_max = 1
+sensor_length = -160 # in pixels
+sensor_angle = π/8
+speed = 0.15*1080
+varspeed = 0.20*1080
+rot_speed = 5π
+
+colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
+pheromones = default_colors
+attractions = (Color(255,0,0), Color(0,255,0), Color(0,0,255))
+
+drawn_particles = true
+starting_distribution = "random"
 
 end
