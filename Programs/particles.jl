@@ -143,8 +143,7 @@ end
 # Draws particles on tex. If clear, other pixels will be set to transparent.
 function draw_particles(tex::Texture; clear=false)
     s = shape(tex)
-    clear && set(tex, repeat(UInt8.([0, 0, 0, 0]), 1, s[1], s[2])) # reset tex to fully transparent
-    # TODO: For performance reasons, this resetting should happen on the GPU, in a shader
+    clear && Shaders.clear(tex, UInt8.([0, 0, 0, 0]))
     bind_image_unit(1, tex) # texture to draw on
     bind_buffer_unit(2, buf_posvel) # particles buffer to read from
     # set(prog_draw_particles, "width", Int32(s[1]))

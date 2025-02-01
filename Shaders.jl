@@ -22,7 +22,7 @@ export TYPE_R8, TYPE_RG8, TYPE_RGB8, TYPE_RGBA8
 export gen_buffer_pointer 
 export Buffer, bind_buffer_unit
 
-export set, get, get!
+export set, get, get!, clear
 
 import Base: bind, size, ndims, get
 
@@ -240,9 +240,9 @@ function shape(tex::Texture)
     tex.D <= 2 && return (widthP[1], heightP[1])
     depthP = Int32[0]
     glGetTexLevelParameteriv(GL_TEXTURE(tex.D), miplevel, GL_TEXTURE_DEPTH, depthP);
-    tex.D <= 2 && return (widthP[1], heightP[1], depthP[1])
+    tex.D <= 3 && return (widthP[1], heightP[1], depthP[1])
 end 
-function size(tex::Texture)
+function size(tex::Texture) 
     get_nb_values(tex.type) == 1 && return shape(tex)
     return (get_nb_values(tex.type), shape(tex)...) 
 end
@@ -267,6 +267,14 @@ function set(tex::Texture, values::Array) #values is essentially a pointer to a 
     tex.D==1 && glTexImage1D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, values)
     tex.D==2 && glTexImage2D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, values)
     tex.D==3 && glTexImage3D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, values)
+    check_errors()
+    return
+end
+
+function clear(tex::Texture, valueP) 
+    get_julia_type(tex.type) == eltype(valueP) || @error("Tried to clear $(get_julia_type(tex.type)) texture with $(eltype(valueP)) values")
+    bind(tex)
+    glClearTexImage(tex.pointer, 0, tex.type.format, tex.type.type, valueP)
     check_errors()
     return
 end
