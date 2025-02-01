@@ -4,6 +4,8 @@ using ModernGL
 using GLFW
 using Shaders
 
+
+#### Particle parameters
 # include("./ParticleConfigs.jl")
 # using .ParticleConfigs
 
@@ -35,6 +37,16 @@ starting_distribution = "center"
 # attractions = (Color(255,127,0), Color(0,255,127), Color(127,0,255))
 # starting_distribution = "random"
 
+
+#### GPU computing parameters (changing here requires changing in the shaders)
+# Don't change these unless you know what you are doing
+use_tiled_diffusion = false
+diffusion_wgsize = (8,8) # Update cs_diffusion.glsl
+diffusion_tiled_wgsize = (16,16) # Update cs_diffusion_tiled.glsl
+particle_wgsize = 256 # update cs_update_particles.glsl and cs_draw_particles.glsl
+
+
+#### Particle definition and generation
 mutable struct Particle 
     x::Float32 
     y::Float32 
@@ -61,13 +73,6 @@ function gen_particle()
     i = rand(1:3)
     return Particle(pos..., vel..., colors[i], pheromones[i], attractions[i])
 end
-
-#### GPU computing parameters (changing here requires changing in the shaders)
-# Don't change these unless you know what you are doing
-use_tiled_diffusion = false
-diffusion_wgsize = (8,8) # Update cs_diffusion.glsl
-diffusion_tiled_wgsize = (16,16) # Update cs_diffusion_tiled.glsl
-particle_wgsize = 256 # update cs_update_particles.glsl and cs_draw_particles.glsl
 
 #### Main code
 createWindow(width,height)
@@ -116,12 +121,13 @@ push_color(particles)
 push_behaviour(particles)
 
 # Allocate texture where particles deposit pheromones
-world = Texture(TYPE_RGB32F,2) 
-world_out = Texture(TYPE_RGB32F,2) 
-set(world, zeros(Float32, 3, width, height)) # set world to zero
-set(world_out, zeros(Float32, 3, width, height)) # set world to zero
+world = Texture(TYPE_RGBA32F,2) 
+world_out = Texture(TYPE_RGBA32F,2) 
+set(world, zeros(Float32, 4, width, height)) # set world to zero
+set(world_out, zeros(Float32, 4, width, height)) # set world to zero
+# Note that α channel is also set to 0 here, but the diffusion shader will set it to 1.0 each iteration
 
-# Allocate texture where particles are drawn on 
+# Allocate texture where particles are drawn
 particles_tex = Texture(TYPE_RGBA8, 2)
 set(particles_tex, repeat(UInt8.([0, 0, 0, 0]), 1, width, height))
 
@@ -138,6 +144,7 @@ end
 function draw_particles(tex::Texture; clear=false)
     s = shape(tex)
     clear && set(tex, repeat(UInt8.([0, 0, 0, 0]), 1, s[1], s[2])) # reset tex to fully transparent
+    # TODO: For performance reasons, this resetting should happen on the GPU, in a shader
     bind_image_unit(1, tex) # texture to draw on
     bind_buffer_unit(2, buf_posvel) # particles buffer to read from
     # set(prog_draw_particles, "width", Int32(s[1]))
@@ -145,7 +152,7 @@ function draw_particles(tex::Texture; clear=false)
     bind_buffer_unit(5, buf_color)
     execute(prog_draw_particles, ceil(Int,n/particle_wgsize), 1, 1)
 end
-draw_particles(particles_tex, clear=true)
+draw_particles(particles_tex, clear=true) # initial particle drawing on the texture
 
 ### Update the particles with time step Δt 
 function update_particles(Δt)

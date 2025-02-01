@@ -35,5 +35,5 @@ void main() {
     vec3 res = decay * ((1-4*diff)*central + diff*sum);
 
     // == Write the result to the output texture ==
-    imageStore(out_tex, globalID, vec4(res,in_vals.a));
+    imageStore(out_tex, globalID, vec4(res,1.0));
 }
