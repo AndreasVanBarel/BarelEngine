@@ -283,7 +283,6 @@ function fullscreen_mode()
 	GLFW.SetWindowSize(window, vm.width, vm.height)
 	GLFW.SetWindowPos(window, 0, 0)
 	GLFW.SetWindowAttrib(window, GLFW.FLOATING, true);
-	vsync(true)
 
 	# GLFW.SetWindowMonitor(window, monitor, 0, 0, vm.width-300, vm.height-300, vm.refreshrate)
 
