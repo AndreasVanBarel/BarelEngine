@@ -101,7 +101,7 @@ sensor_length = 11r # in pixels
 sensor_angle = π/8
 speed = 0.15*1080
 varspeed = 0.05*1080
-rot_speed = 5π/r
+rot_speed = 5π/r #3π and 10π are also interesting 
 
 colors = (COLOR_WHITE, COLOR_WHITE, COLOR_WHITE)
 pheromones = (COLOR_RED, COLOR_RED, COLOR_RED)
@@ -315,6 +315,31 @@ sensor_angle = π/12
 speed = 160
 varspeed = 60
 rot_speed = 3π
+
+colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
+pheromones = colors
+attractions = (Color(255,127,0), Color(0,255,127), Color(127,0,255))
+drawn_particles = true
+starting_distribution = "center" 
+
+
+# [7.1] Froggy spirals alternative
+# general parameters
+width = 1920*2; height = 1080*2; 
+n = 2^20 # number of particles
+
+# World (i.e., pheromone diffusion) parameters
+μ = 5*2
+λ = 0.5
+
+# Particle parameters
+pheromone_strength = 1/10
+pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
+sensor_length = 60 # in pixels
+sensor_angle = π/16
+speed = 160
+varspeed = 60
+rot_speed = 2π
 
 colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
 pheromones = colors
