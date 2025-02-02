@@ -22,9 +22,9 @@ export TYPE_R8, TYPE_RG8, TYPE_RGB8, TYPE_RGBA8
 export gen_buffer_pointer 
 export Buffer, bind_buffer_unit
 
-export set, get, get!, clear
+export set, get, get!
 
-import Base: bind, size, ndims, get
+import Base: bind, size, ndims, eltype, get, fill
 
 ## General
 const null = Ptr{Nothing}() # Note: same as C_NULL
@@ -191,6 +191,13 @@ function get_nb_values(t::TextureType)
     return 1
 end
 
+"""
+    Texture
+
+The [`Texture`](@ref) struct is a wrapper around a pointer to a texture in GPU memory (with additional info about the texture's type and dimensionality). While it implements the functions [`size`](@ref), [`ndims`](@ref), and [`eltype`](@ref) that follow the specification of Julia's [`AbstractArray`](@ref) interface, one can only get and set the full texture at once (obtaining or providing an [`AbstractArray`](@ref) with the correct [`size`](@ref) and [`eltype`](@ref)). It thus does not support indexing or slicing and is NOT a subtype of [`AbstractArray`](@ref).
+    
+See also: [`shape`](@ref), [`size`](@ref), [`ndims`](@ref), [`eltype`](@ref), [`get`](@ref), [`get!`](@ref), [`set`](@ref), [`fill`](@ref), [`free`](@ref), [`bind`](@ref), [`bind_texture_unit`](@ref), [`bind_image_unit`](@ref), [`allocate`](@ref)
+"""
 struct Texture 
     pointer::UInt32 # GPU pointer to this texture
     type::TextureType 
@@ -229,7 +236,8 @@ function bind_image_unit(image_unit::Integer, tex::Texture, shader_format=tex.ty
     glBindImageTexture(image_unit, tex.pointer, 0, GL_FALSE, 0, access, shader_format) # "bind a level of a texture to an image unit"
 end
 
-# returns all of the applicable (width,height,depth) 
+# returns all of the applicable (width,height,depth)
+# Note that this is different from size(tex)
 function shape(tex::Texture)
     miplevel = 0
     widthP = Int32[0]
@@ -242,7 +250,11 @@ function shape(tex::Texture)
     glGetTexLevelParameteriv(GL_TEXTURE(tex.D), miplevel, GL_TEXTURE_DEPTH, depthP);
     tex.D <= 3 && return (widthP[1], heightP[1], depthP[1])
 end 
-function size(tex::Texture) 
+
+eltype(tex::Texture) = get_julia_type(tex.type) # Returns the type of the values in the texture
+# Note that now the Julia array has the same layout in memory as the OpenGL texture. In particular, the R,G,B,A values are contiguous in memory.
+# However, one might want to require a size of 1 for the first dimension of the Julia array, i.e., size(tex)[1] == 1, for textures with only a single color channel, i.e., having get_nb_values(tex.type) == 1. In that case this function should always return (get_nb_values(tex.type), shape(tex)...)
+function size(tex::Texture) # Returns the size of the texture in terms of number of values, i.e., as if it were a Julia array
     get_nb_values(tex.type) == 1 && return shape(tex)
     return (get_nb_values(tex.type), shape(tex)...) 
 end
@@ -261,7 +273,7 @@ end
 
 # Sets values in given Texture tex
 function set(tex::Texture, values::Array) #values is essentially a pointer to a Float32 array
-    get_julia_type(tex.type) == eltype(values) || @error("Tried to set $(get_julia_type(tex.type)) texture with $(eltype(values)) values")
+    eltype(tex) == eltype(values) || @error("Tried to set $(eltype(tex)) texture with $(eltype(values)) values")
     shape = size(values)[end-tex.D+1:end] #gets last tex.D entries in size(values)
     bind(tex)
     tex.D==1 && glTexImage1D(GL_TEXTURE(tex.D), 0, tex.type.internal_format, shape..., 0, tex.type.format, tex.type.type, values)
@@ -271,8 +283,8 @@ function set(tex::Texture, values::Array) #values is essentially a pointer to a 
     return
 end
 
-function clear(tex::Texture, valueP) 
-    get_julia_type(tex.type) == eltype(valueP) || @error("Tried to clear $(get_julia_type(tex.type)) texture with $(eltype(valueP)) values")
+function fill(tex::Texture, valueP) 
+    eltype(tex) == eltype(valueP) || @error("Tried to clear $(eltype(tex)) texture with $(eltype(valueP)) values")
     bind(tex)
     glClearTexImage(tex.pointer, 0, tex.type.format, tex.type.type, valueP)
     check_errors()
@@ -281,7 +293,7 @@ end
 
 # Gets values in tex
 function get(tex::Texture)
-    data = Array{get_julia_type(tex.type),ndims(tex)}(undef, size(tex)...)
+    data = Array{eltype(tex),ndims(tex)}(undef, size(tex)...)
     get!(tex::Texture, data)
     return data
 end

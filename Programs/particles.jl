@@ -16,28 +16,29 @@ width = 1920*2; height = 1080*2;
 n = 2^20 # number of particles
 
 # World (i.e., pheromone diffusion) parameters
-μ = 10
-λ = 0.25
+μ = 5*2
+λ = 0.5
 
 # Particle parameters
-pheromone_strength = 1
+pheromone_strength = 1/10
 pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
-sensor_length = 20 # in pixels
-sensor_angle = π/8
+sensor_length = 60 # in pixels
+sensor_angle = π/12
 speed = 160
 varspeed = 60
-rot_speed = 2π
+rot_speed = 3π
 
 colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
 pheromones = colors
-attractions = (Color(127,255,0), Color(0,127,255), Color(255,0,127))
+# attractions = (Color(127,255,0), Color(0,127,255), Color(255,0,127))
 drawn_particles = true
-starting_distribution = "random"
+starting_distribution = "center" 
 
+# attractions = (Color(100,255,0), Color(0,100,255), Color(255,0,100))
 # attractions = (Color(255,200,0), Color(0,255,200), Color(200,0,255))
 # attractions = (Color(255,0,0), Color(0,255,0), Color(0,0,255))
 # attractions = (Color(0,255,0), Color(0,0,255), Color(255,0,0))
-# attractions = (Color(255,127,0), Color(0,255,127), Color(127,0,255))
+attractions = (Color(255,127,0), Color(0,255,127), Color(127,0,255))
 # attractions = (Color(127,255,0), Color(0,127,255), Color(255,0,127))
 # starting_distribution = "random"
 
@@ -79,11 +80,12 @@ function gen_particle()
 end
 
 #### Main code
+gen_particles(n) = [gen_particle() for i = 1:n]
+particles = gen_particles(n)
+
 createWindow(width,height)
 vsync(false)
 println(get_opengl_info())
-gen_particles(n) = [gen_particle() for i = 1:n]
-particles = gen_particles(n)
 
 # Allocate buffers for the particles with position and velocity
 # A particle posvel is Float32[x, y, vx, vy]
@@ -148,7 +150,7 @@ end
 # Draws particles on tex. If clear, other pixels will be set to transparent.
 function draw_particles(tex::Texture; clear=false)
     s = shape(tex)
-    clear && Shaders.clear(tex, UInt8.([0, 0, 0, 0]))
+    clear && fill(tex, UInt8.([0, 0, 0, 0]))
     bind_image_unit(1, tex) # texture to draw on
     bind_buffer_unit(2, buf_posvel) # particles buffer to read from
     # set(prog_draw_particles, "width", Int32(s[1]))
@@ -225,7 +227,7 @@ key_zoom_out = 0 # 1 for pressed -> zooming out
 
 function onUpdate(t_elapsed)
     global t_prev, iterating, iteration, scale, center, click_center, click_loc, key_zoom_in, key_zoom_out
-    global sensor_length
+    global sensor_length, rot_speed
 
     ## Time etc 
     Δt = (t_prev == -Inf ? 0 : t_elapsed - t_prev)
@@ -257,15 +259,20 @@ function onUpdate(t_elapsed)
             println("Iteration = $iteration")
             println("scale = $scale")
             println("location = $center")
-            println("sensor_length = $sensor_length")
+            # println("sensor_length = $sensor_length")
+            println("rot_speed = $rot_speed")
         end
         if event.key == GLFW.KEY_EQUAL && event.action == GLFW.PRESS
-            sensor_length += 1
-            set(prog_update_particles, "sensor_length", Float32(sensor_length))
+            # sensor_length += 1
+            # set(prog_update_particles, "sensor_length", Float32(sensor_length))
+            rot_speed *= 1.25
+            set(prog_update_particles, "rot_speed", Float32(rot_speed))
         end
         if event.key == GLFW.KEY_MINUS && event.action == GLFW.PRESS
-            sensor_length -= 1
-            set(prog_update_particles, "sensor_length", Float32(sensor_length))
+            # sensor_length -= 1
+            # set(prog_update_particles, "sensor_length", Float32(sensor_length))
+            rot_speed /= 1.25
+            set(prog_update_particles, "rot_speed", Float32(rot_speed))
         end
     end 
     process_key_events.(poppedKeyEvents)
