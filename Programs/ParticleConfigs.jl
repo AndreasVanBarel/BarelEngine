@@ -296,4 +296,30 @@ attractions = (Color(255,0,0), Color(0,255,0), Color(0,0,255))
 drawn_particles = true
 starting_distribution = "random"
 
+
+# [7] Froggy spirals
+# (For disabled left sensor in cs_update_particles.glsl)
+# general parameters
+width = 1920*2; height = 1080*2; 
+n = 2^20 # number of particles
+
+# World (i.e., pheromone diffusion) parameters
+μ = 5*2
+λ = 0.5
+
+# Particle parameters
+pheromone_strength = 1/10
+pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
+sensor_length = 60 # in pixels
+sensor_angle = π/12
+speed = 160
+varspeed = 60
+rot_speed = 3π
+
+colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
+pheromones = colors
+attractions = (Color(255,127,0), Color(0,255,127), Color(127,0,255))
+drawn_particles = true
+starting_distribution = "center" 
+
 end
