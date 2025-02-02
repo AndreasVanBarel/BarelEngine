@@ -339,12 +339,86 @@ sensor_length = 60 # in pixels
 sensor_angle = π/16
 speed = 160
 varspeed = 60
-rot_speed = 2π
+rot_speed = 2π #5π/2
 
 colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
 pheromones = colors
 attractions = (Color(255,127,0), Color(0,255,127), Color(127,0,255))
 drawn_particles = true
+starting_distribution = "center" 
+
+
+# [8] Hairy curves
+# general parameters
+width = 1920*2; height = 1080*2; 
+n = 2^20 # number of particles
+
+# World (i.e., pheromone diffusion) parameters
+μ = 5*2
+λ = 0.5
+
+# Particle parameters
+pheromone_strength = 1
+pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
+sensor_length = 25 # in pixels
+sensor_angle = π/2
+speed = 160
+varspeed = 60
+rot_speed = 3π/4
+
+colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
+pheromones = colors
+attractions = (Color(127,255,0), Color(0,127,255), Color(255,0,127))
+drawn_particles = false
+starting_distribution = "center" 
+
+
+# [9] Single spriral steady state
+# general parameters
+width = 1920*2; height = 1080*2; 
+n = 2^20 # number of particles
+
+# World (i.e., pheromone diffusion) parameters
+μ = 5*2
+λ = 0.5*3
+
+# Particle parameters
+pheromone_strength = 1/10 *1/16
+pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
+sensor_length = 60 # in pixels
+sensor_angle = π/16
+speed = 160
+varspeed = 60
+rot_speed = 2.5π
+
+colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
+pheromones = colors
+attractions = (Color(255,137,10), Color(10,255,137), Color(137,10,255))
+drawn_particles = false
+starting_distribution = "center" 
+
+# [10] Multiple spirals
+# general parameters
+width = 1920*2; height = 1080*2; 
+n = 2^20 # number of particles
+
+# World (i.e., pheromone diffusion) parameters
+μ = 5*2
+λ = 0.5
+
+# Particle parameters
+pheromone_strength = 1/10
+pheromone_max = 1 # maximum pheromones in the world (note: 1 fully saturates the output color)
+sensor_length = 60 # in pixels
+sensor_angle = π/16
+speed = 160
+varspeed = 60
+rot_speed = 8π/5
+
+colors = (COLOR_RED, COLOR_GREEN, COLOR_BLUE)
+pheromones = colors
+attractions = (Color(255,137,10), Color(10,255,137), Color(137,10,255))
+drawn_particles = false
 starting_distribution = "center" 
 
 end
