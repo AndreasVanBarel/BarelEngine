@@ -48,5 +48,5 @@ function onUpdate(t_elapsed)
     draw.(circles)
 end
 loop(onUpdate)
-free.([sprite,bg])
+free.([sprite,background])
 destroyWindow()
